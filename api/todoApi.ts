@@ -4,37 +4,43 @@ import { Notice } from "obsidian";
 import { Client } from "@microsoft/microsoft-graph-client";
 export class TodoApi {
     private client: Client;
-    constructor(private readonly clientProvider: MicrosoftClientProvider) {
+    constructor(clientProvider: MicrosoftClientProvider) {
         clientProvider.getClient().then(client => {
             this.client = client;
         })
     }
-    async getAllTodoLists(): Promise<TodoTaskList[] | undefined> {
+
+    // List operation
+    async getLists(): Promise<TodoTaskList[] | undefined> {
         const endpoint = "/me/todo/lists";
-        const client = await this.clientProvider.getClient();
-        const todoLists = (await client.api(endpoint).get()).value as TodoTaskList[];
+        const todoLists = (await this.client.api(endpoint).get()).value as TodoTaskList[];
         return todoLists;
     }
     async getListIdByName(listName: string | undefined): Promise<string | undefined> {
         if (!listName) return;
         const endpoint = `/me/todo/lists`;
-        const client = await this.clientProvider.getClient();
-        const res: TodoTaskList[] = (await client.api(endpoint).filter(`displayName eq '${listName}'`).get()).value;
+        const res: TodoTaskList[] = (await this.client.api(endpoint).filter(`displayName eq '${listName}'`).get()).value;
         if (!res || res.length == 0) return;
         const target = res[0] as TodoTaskList;
         return target.id;
     }
-    async getTodoList(listId: string | undefined): Promise<TodoTaskList | undefined> {
+    async getList(listId: string | undefined): Promise<TodoTaskList | undefined> {
         if (!listId) return;
         const endpoint = `/me/todo/lists/${listId}`;
-        const client = await this.clientProvider.getClient();
-        return (await client.api(endpoint).get()) as TodoTaskList;
+        return (await this.client.api(endpoint).get()) as TodoTaskList;
     }
-    async getListTasks(listId: string | undefined): Promise<TodoTask[] | undefined> {
+    async createTaskList(displayName: string): Promise<TodoTaskList | undefined> {
+        return await this.client.api('/me/todo/lists')
+            .post({
+                displayName
+            })
+    }
+
+    // Task operation
+    async getListTasks(listId: string,searchText?:string): Promise<TodoTask[] | undefined> {
         if (!listId) return;
         const endpoint = `/me/todo/lists/${listId}/tasks`;
-        const client = await this.clientProvider.getClient();
-        const res = await client.api(endpoint).get()
+        const res = await this.client.api(endpoint).get()
             .catch(err => {
                 new Notice("获取失败，请检查同步列表是否已删除");
                 return;
@@ -43,25 +49,13 @@ export class TodoApi {
         console.log("🚀 ~ res", res)
         return res.value as TodoTask[];
     }
-
     async getTask(listId: string, taskId: string): Promise<TodoTask | undefined> {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
-        const client = await this.clientProvider.getClient();
-        return (await client.api(endpoint).get()) as TodoTask;
+        return (await this.client.api(endpoint).get()) as TodoTask;
     }
-    async createTaskList(displayName: string): Promise<TodoTaskList | undefined> {
-        const client = await this.clientProvider.getClient();
-        return await client.api('/me/todo/lists')
-            .post({
-                displayName
-            })
-    }
-    // Create tasks 
-    async createTask(listId: string | undefined, title: string): Promise<undefined> {
-        if (!listId) return;
+    async createTask(listId: string|undefined, title: string): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks`;
-        const client = await this.clientProvider.getClient();
-        await client.api(endpoint).post({
+        return await this.client.api(endpoint).post({
             title: title,
             body: {
                 content: '',

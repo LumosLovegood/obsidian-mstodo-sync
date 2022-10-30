@@ -51,8 +51,8 @@ export default class MsTodoSync extends Plugin {
 		});
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
-			id: 'add-microsofttodo',
-			name: '添加微软待办',
+			id: 'add-microsoft-todo',
+			name: '获取微软待办',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				if (!this.settings.todoListSync.listId) {
 					new Notice('请先设置同步列表');
@@ -67,24 +67,41 @@ export default class MsTodoSync extends Plugin {
 				// 	return;
 				// }
 				// const tasks = await this.api.getListTasks(listId);
-
 				const tasks = await this.todoApi.getListTasks(this.settings.todoListSync.listId);
 				console.log(editor.getSelection());
 				if (!tasks) return;
 				editor.replaceSelection(tasks.map(i => `- [ ] ${i.title} 创建于${window.moment(i.createdDateTime).format("HH:mm")}`).join("\n"));
+				new Notice('待办列表已获取');
 			}
 		});
+		// this.addCommand({
+		// 	id: 'add-uptimer',
+		// 	name: '生成今日时间线',
+		// 	editorCallback: async (editor: Editor, view: MarkdownView) => {
+		// 		if (!this.settings.uptimerToken) {
+		// 			new Notice('请先登录获取token');
+		// 			return;
+		// 		}
+		// 		const raw = await this.uptimerApi.getTodayActivities();
+		// 		if (!raw) return;
+		// 		editor.replaceSelection(raw.map((i: { item: { title: any; }; }) => `- [ ] ${i.item?.title}`).join("\n"));
+		// 		new Notice('今日时间线已生成');
+		// 	}
+		// });
 		this.addCommand({
-			id: 'add-uptimer',
-			name: '添加今日时间线',
+			id: 'create-task',
+			name: '创建新待办',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				if (!this.settings.uptimerToken) {
-					new Notice('请先登录获取token');
+				if (!this.settings.todoListSync.listId) {
+					new Notice('请先设置同步列表');
 					return;
 				}
-				const raw = await this.uptimerApi.getTodayActivities();
-				if (!raw) return;
-				editor.replaceSelection(raw.map((i: { item: { title: any; }; }) => `- [ ] ${i.item?.title}`).join("\n"));
+				Promise.all(editor.getSelection().replace(/(- \[ \] )|\*|^> |^#* |- /gm, "").split("\n").filter(s => s != "").map(async s => {
+					const line = s.trim();
+					return await this.todoApi.createTask(this.settings.todoListSync.listId, line);
+				})).then(res => editor.replaceSelection(res.map(i => `- [ ] ${i.title} 创建于${window.moment(i.createdDateTime).format("HH:mm")}`).join("\n")));
+				
+				// this.todoApi.getListTasks()
 			}
 		});
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
@@ -118,7 +135,7 @@ export default class MsTodoSync extends Plugin {
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 
-		if(this.settings.uptimerToken != undefined){
+		if (this.settings.uptimerToken != undefined) {
 			this.uptimerApi = new UptimerApi(this.settings.uptimerToken);
 			// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
 		}

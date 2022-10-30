@@ -1,15 +1,13 @@
 import * as msal from "@azure/msal-node";
 import * as msalCommon from "@azure/msal-common";
-// import * as fs from 'fs';
 import { Client } from "@microsoft/microsoft-graph-client";
 import "isomorphic-fetch";
-// import * as open from 'open';
 import { App, Notice } from "obsidian";
 import type { Vault } from "obsidian";
 /**
  * @public
  */
-export function getTokenPath(vault:Vault):string{
+export function getCachePath(vault:Vault):string{
     return `${vault.configDir}/msal_cache.json`;
 }
 export class MicrosoftClientProvider {
@@ -20,7 +18,7 @@ export class MicrosoftClientProvider {
     private authority = "https://login.microsoftonline.com/consumers";
 
     constructor(private readonly app:App) {
-        this.cachePath = getTokenPath(app.vault)
+        this.cachePath = getCachePath(app.vault)
         const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
             // if (fs.existsSync(this.cachePath)) {
                 // cacheContext.tokenCache.deserialize(fs.readFileSync(this.cachePath, "utf-8"));
