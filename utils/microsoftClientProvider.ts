@@ -14,13 +14,13 @@ export function getTokenPath(vault:Vault):string{
 }
 export class MicrosoftClientProvider {
     static scopes: string[] = ['Tasks.ReadWrite', 'Calendars.ReadWrite', 'People.Read', 'Tasks.Read', 'openid', 'profile'];
-    // private cachePath = "./cache/msal_cache.json";
+    private cachePath: string;
     private pca: msal.PublicClientApplication;
     private clientId = "a1172059-5f55-45cd-9665-8dccc98c2587";
     private authority = "https://login.microsoftonline.com/consumers";
 
-    constructor(private cachePath:string,private app:App) {
-        console.log("🚀 ~ cachePath", cachePath)
+    constructor(private readonly app:App) {
+        this.cachePath = getTokenPath(app.vault)
         const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
             // if (fs.existsSync(this.cachePath)) {
                 // cacheContext.tokenCache.deserialize(fs.readFileSync(this.cachePath, "utf-8"));

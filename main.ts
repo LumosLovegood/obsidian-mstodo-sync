@@ -1,6 +1,6 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { TodoApi } from './api/todoApi';
-import { getTokenPath, MicrosoftClientProvider } from './utils/microsoftClientProvider';
+import { MicrosoftClientProvider } from './utils/microsoftClientProvider';
 import { UptimerApi } from './api/uptimerApi';
 interface TodoListSync {
 	listName: string | undefined;
@@ -123,8 +123,7 @@ export default class MsTodoSync extends Plugin {
 			// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
 		}
 
-		const tokenPath = getTokenPath(this.app.vault);
-		this.todoApi = new TodoApi(new MicrosoftClientProvider(tokenPath, this.app));
+		this.todoApi = new TodoApi(new MicrosoftClientProvider(this.app));
 	}
 
 	onunload() {

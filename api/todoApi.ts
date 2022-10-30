@@ -1,9 +1,13 @@
 import { MicrosoftClientProvider } from "../utils/microsoftClientProvider";
 import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
 import { Notice } from "obsidian";
+import { Client } from "@microsoft/microsoft-graph-client";
 export class TodoApi {
+    private client: Client;
     constructor(private readonly clientProvider: MicrosoftClientProvider) {
-
+        clientProvider.getClient().then(client => {
+            this.client = client;
+        })
     }
     async getAllTodoLists(): Promise<TodoTaskList[] | undefined> {
         const endpoint = "/me/todo/lists";
@@ -35,7 +39,7 @@ export class TodoApi {
                 new Notice("获取失败，请检查同步列表是否已删除");
                 return;
             })
-        if(!res) return;
+        if (!res) return;
         console.log("🚀 ~ res", res)
         return res.value as TodoTask[];
     }

@@ -24,7 +24,7 @@ export class UptimerApi {
     }
 
     public async getTodayActivities() {
-        return (await fetch('https://apii.mytimelog.cn/api/TimeLog/listOnlyLogV2?categoryCode&channelCode&tag&keyword&pageNum=1&pageSize=999', {
+        return await fetch('https://apii.mytimelog.cn/api/TimeLog/listOnlyLogV2?categoryCode&channelCode&tag&keyword&pageNum=1&pageSize=999', {
             method: 'POST',
             headers: this.header,
             body: JSON.stringify({
@@ -35,6 +35,6 @@ export class UptimerApi {
             })
         })
             .then(res => res.json())
-            .then(data => data.data));
+            .then(data => data.data);
     }
 }
