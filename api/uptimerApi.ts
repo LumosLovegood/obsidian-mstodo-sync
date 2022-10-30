@@ -1,4 +1,3 @@
-import * as moment from 'moment';
 import fetch from "node-fetch";
 
 export class UptimerApi {
@@ -31,11 +30,11 @@ export class UptimerApi {
             body: JSON.stringify({
                 'page': 0,
                 'size': 999,
-                'startTime': moment().startOf("day").unix(),
-                'endTime': moment().endOf("day").unix()
+                'startTime': window.moment().startOf("day").unix(),
+                'endTime': window.moment().endOf("day").unix()
             })
         })
             .then(res => res.json())
-            .then(data => data.data)).reverse();
+            .then(data => data.data));
     }
 }

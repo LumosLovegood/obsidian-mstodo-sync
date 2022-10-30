@@ -1,28 +1,30 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { TodoApi } from './api/todoApi';
 import { getTokenPath, MicrosoftClientProvider } from './utils/microsoftClientProvider';
-// Remember to rename these classes and interfaces!
-
+import { UptimerApi } from './api/uptimerApi';
 interface TodoListSync {
 	listName: string | undefined;
 	listId: string | undefined
 }
-interface MyPluginSettings {
+interface MsTodoSyncSettings {
 	mySetting: string;
-	todoListSync: TodoListSync
+	todoListSync: TodoListSync;
+	uptimerToken: string | undefined;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
+const DEFAULT_SETTINGS: MsTodoSyncSettings = {
 	mySetting: 'default',
 	todoListSync: {
 		listName: undefined,
 		listId: undefined
-	}
+	},
+	uptimerToken: undefined
 }
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
-	public api: TodoApi;
+export default class MsTodoSync extends Plugin {
+	settings: MsTodoSyncSettings;
+	public todoApi: TodoApi;
+	public uptimerApi: UptimerApi;
 
 	async onload() {
 		await this.loadSettings();
@@ -66,10 +68,23 @@ export default class MyPlugin extends Plugin {
 				// }
 				// const tasks = await this.api.getListTasks(listId);
 
-				const tasks = await this.api.getListTasks(this.settings.todoListSync.listId);
+				const tasks = await this.todoApi.getListTasks(this.settings.todoListSync.listId);
 				console.log(editor.getSelection());
 				if (!tasks) return;
 				editor.replaceSelection(tasks.map(i => `- [ ] ${i.title} 创建于${window.moment(i.createdDateTime).format("HH:mm")}`).join("\n"));
+			}
+		});
+		this.addCommand({
+			id: 'add-uptimer',
+			name: '添加今日时间线',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				if (!this.settings.uptimerToken) {
+					new Notice('请先登录获取token');
+					return;
+				}
+				const raw = await this.uptimerApi.getTodayActivities();
+				if (!raw) return;
+				editor.replaceSelection(raw.map((i: { item: { title: any; }; }) => `- [ ] ${i.item?.title}`).join("\n"));
 			}
 		});
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
@@ -93,7 +108,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new UptimerSettingTab(this.app, this));
+		this.addSettingTab(new MsTodoSyncSettingTab(this.app, this));
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -102,10 +117,14 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+
+		if(this.settings.uptimerToken != undefined){
+			this.uptimerApi = new UptimerApi(this.settings.uptimerToken);
+			// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
+		}
 
 		const tokenPath = getTokenPath(this.app.vault);
-		this.api = new TodoApi(new MicrosoftClientProvider(tokenPath, this.app));
+		this.todoApi = new TodoApi(new MicrosoftClientProvider(tokenPath, this.app));
 	}
 
 	onunload() {
@@ -137,10 +156,10 @@ class SampleModal extends Modal {
 	}
 }
 
-class UptimerSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+class MsTodoSyncSettingTab extends PluginSettingTab {
+	plugin: MsTodoSync;
 	todoListNameSync: string;
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: MsTodoSync) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -150,30 +169,30 @@ class UptimerSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Uptimer设置' });
+		containerEl.createEl('h2', { text: 'Microsoft Todo设置' });
 
 		new Setting(containerEl)
 			.setName('输入要同步的微软Todo列表名称')
 			.setDesc('如不存在则以该名称创建列表')
 			.addText(text => text
-				.setPlaceholder('输入Todo列表名称')
+				// .setPlaceholder('输入Todo列表名称')
 				.setValue(this.plugin.settings.todoListSync.listName ?? "")
 				.onChange(async (value) => {
 					this.todoListNameSync = value;
 					console.log("🚀 ~ value", value)
 				}));
 
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					console.log('Secret: ' + value);
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+		// new Setting(containerEl)
+		// 	.setName('Setting #1')
+		// 	.setDesc('It\'s a secret')
+		// 	.addText(text => text
+		// 		.setPlaceholder('Enter your secret')
+		// 		.setValue(this.plugin.settings.mySetting)
+		// 		.onChange(async (value) => {
+		// 			console.log('Secret: ' + value);
+		// 			this.plugin.settings.mySetting = value;
+		// 			await this.plugin.saveSettings();
+		// 		}));
 	}
 	async hide() {
 		const listName = this.todoListNameSync ?? this.plugin.settings.todoListSync.listName;
@@ -181,9 +200,9 @@ class UptimerSettingTab extends PluginSettingTab {
 			new Notice("同步列表未设置");
 			return;
 		}
-		let listId = await this.plugin.api.getListIdByName(listName);
+		let listId = await this.plugin.todoApi.getListIdByName(listName);
 		if (!listId) {
-			listId = (await this.plugin.api.createTaskList(listName))?.id;
+			listId = (await this.plugin.todoApi.createTaskList(listName))?.id;
 		}
 		if (!listId) {
 			new Notice('创建列表失败');
