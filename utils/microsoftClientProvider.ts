@@ -1,31 +1,40 @@
 import * as msal from "@azure/msal-node";
 import * as msalCommon from "@azure/msal-common";
-import * as open from 'open';
-import * as fs from 'fs';
+// import * as fs from 'fs';
 import { Client } from "@microsoft/microsoft-graph-client";
 import "isomorphic-fetch";
-// import { Notice } from "obsidian";
+// import * as open from 'open';
+import { App, Notice } from "obsidian";
+import type { Vault } from "obsidian";
 /**
  * @public
  */
+export function getTokenPath(vault:Vault):string{
+    return `${vault.configDir}/msal_cache.json`;
+}
 export class MicrosoftClientProvider {
     static scopes: string[] = ['Tasks.ReadWrite', 'Calendars.ReadWrite', 'People.Read', 'Tasks.Read', 'openid', 'profile'];
-    private cachePath = "./cache/msal_cache.json";
+    // private cachePath = "./cache/msal_cache.json";
     private pca: msal.PublicClientApplication;
     private clientId = "a1172059-5f55-45cd-9665-8dccc98c2587";
     private authority = "https://login.microsoftonline.com/consumers";
 
-    constructor() {
+    constructor(private cachePath:string,private app:App) {
+        console.log("🚀 ~ cachePath", cachePath)
         const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
-            if (fs.existsSync(this.cachePath)) {
-                cacheContext.tokenCache.deserialize(fs.readFileSync(this.cachePath, "utf-8"));
+            // if (fs.existsSync(this.cachePath)) {
+                // cacheContext.tokenCache.deserialize(fs.readFileSync(this.cachePath, "utf-8"));
+        // }
+            if (await this.app.vault.adapter.exists(this.cachePath)) {
+                cacheContext.tokenCache.deserialize(await this.app.vault.adapter.read(this.cachePath));
             }
         };
         const afterCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
             if (cacheContext.cacheHasChanged) {
-                fs.writeFile(this.cachePath, cacheContext.tokenCache.serialize(), function () {
-                    console.log("write");
-                });
+                // fs.writeFile(this.cachePath, cacheContext.tokenCache.serialize(), function () {
+                //     console.log("write");
+                // });
+                await this.app.vault.adapter.write(this.cachePath, cacheContext.tokenCache.serialize());
             }
         };
         const cachePlugin = {
@@ -46,24 +55,29 @@ export class MicrosoftClientProvider {
 
     private async getAccessToken() {
         const msalCacheManager = this.pca.getTokenCache();
-        if (fs.existsSync(this.cachePath)) {
-            msalCacheManager.deserialize(fs.readFileSync(this.cachePath, "utf-8"));
+        // if (fs.existsSync(this.cachePath)) {
+        //     msalCacheManager.deserialize(fs.readFileSync(this.cachePath, "utf-8"));
+        // }
+        if(await this.app.vault.adapter.exists(this.cachePath)){
+            msalCacheManager.deserialize(await this.app.vault.adapter.read(this.cachePath));
         }
         const accounts = await msalCacheManager.getAllAccounts();
         if (accounts.length == 0) {
             return await this.authByDevice();
         } else {
-            return await this.authSilent(accounts)
+            return await this.authSilent(accounts[0])
         }
     }
     private async authByDevice(): Promise<string> {
         const deviceCodeRequest = {
             deviceCodeCallback: (response: msalCommon.DeviceCodeResponse) => {
-                // TODO: open in obsidian
-                open(response["verificationUri"])
+                // for test
+                // open(response["verificationUri"])
+                // console.log("设备代码已复制到剪贴板",response['userCode']);
 
-                // TODO: uncommon this when release
-                // new Notice("设备代码已复制到剪贴板√");
+                // for obsidian
+                window.open(response["verificationUri"])
+                new Notice("设备代码已复制到剪贴板√");
                 navigator.clipboard.writeText(response['userCode']);
                 console.log("设备代码已复制到剪贴板",response['userCode']);
             },
@@ -74,9 +88,9 @@ export class MicrosoftClientProvider {
         });
     }
 
-    private async authSilent(accounts: msal.AccountInfo[]): Promise<string> {
+    private async authSilent(account: msal.AccountInfo): Promise<string> {
         const silentRequest = {
-            account: accounts[0],
+            account: account,
             scopes: MicrosoftClientProvider.scopes,
         };
         return await this.pca.acquireTokenSilent(silentRequest)

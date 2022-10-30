@@ -1,17 +1,28 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
-
+import { TodoApi } from './api/todoApi';
+import { getTokenPath, MicrosoftClientProvider } from './utils/microsoftClientProvider';
 // Remember to rename these classes and interfaces!
 
+interface TodoListSync {
+	listName: string | undefined;
+	listId: string | undefined
+}
 interface MyPluginSettings {
 	mySetting: string;
+	todoListSync: TodoListSync
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+	mySetting: 'default',
+	todoListSync: {
+		listName: undefined,
+		listId: undefined
+	}
 }
 
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
+	public api: TodoApi;
 
 	async onload() {
 		await this.loadSettings();
@@ -38,11 +49,27 @@ export default class MyPlugin extends Plugin {
 		});
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
+			id: 'add-microsofttodo',
+			name: '添加微软待办',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				if (!this.settings.todoListSync.listId) {
+					new Notice('请先设置同步列表');
+					return;
+				}
+
+				/* TODO 测试发现删除某个列表之后，居然还可以通过listId查到，好神奇
+				本来想用下面代码替换一下，不过感觉好像对使用逻辑没什么太大影响，先不改了 */
+				// const listId = await this.api.getListIdByName(this.settings.todoListSync.listName);
+				// if (!listId) {
+				// 	new Notice("获取失败，请检查同步列表是否已删除");
+				// 	return;
+				// }
+				// const tasks = await this.api.getListTasks(listId);
+
+				const tasks = await this.api.getListTasks(this.settings.todoListSync.listId);
 				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
+				if (!tasks) return;
+				editor.replaceSelection(tasks.map(i => `- [ ] ${i.title} 创建于${window.moment(i.createdDateTime).format("HH:mm")}`).join("\n"));
 			}
 		});
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
@@ -66,7 +93,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new UptimerSettingTab(this.app, this));
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -76,6 +103,9 @@ export default class MyPlugin extends Plugin {
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+
+		const tokenPath = getTokenPath(this.app.vault);
+		this.api = new TodoApi(new MicrosoftClientProvider(tokenPath, this.app));
 	}
 
 	onunload() {
@@ -97,30 +127,41 @@ class SampleModal extends Modal {
 	}
 
 	onOpen() {
-		const {contentEl} = this;
+		const { contentEl } = this;
 		contentEl.setText('Woah!');
 	}
 
 	onClose() {
-		const {contentEl} = this;
+		const { contentEl } = this;
 		contentEl.empty();
 	}
 }
 
-class SampleSettingTab extends PluginSettingTab {
+class UptimerSettingTab extends PluginSettingTab {
 	plugin: MyPlugin;
-
+	todoListNameSync: string;
 	constructor(app: App, plugin: MyPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
 	display(): void {
-		const {containerEl} = this;
+		const { containerEl } = this;
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
+		containerEl.createEl('h2', { text: 'Uptimer设置' });
+
+		new Setting(containerEl)
+			.setName('输入要同步的微软Todo列表名称')
+			.setDesc('如不存在则以该名称创建列表')
+			.addText(text => text
+				.setPlaceholder('输入Todo列表名称')
+				.setValue(this.plugin.settings.todoListSync.listName ?? "")
+				.onChange(async (value) => {
+					this.todoListNameSync = value;
+					console.log("🚀 ~ value", value)
+				}));
 
 		new Setting(containerEl)
 			.setName('Setting #1')
@@ -133,5 +174,29 @@ class SampleSettingTab extends PluginSettingTab {
 					this.plugin.settings.mySetting = value;
 					await this.plugin.saveSettings();
 				}));
+	}
+	async hide() {
+		const listName = this.todoListNameSync ?? this.plugin.settings.todoListSync.listName;
+		if (!listName) {
+			new Notice("同步列表未设置");
+			return;
+		}
+		let listId = await this.plugin.api.getListIdByName(listName);
+		if (!listId) {
+			listId = (await this.plugin.api.createTaskList(listName))?.id;
+		}
+		if (!listId) {
+			new Notice('创建列表失败');
+			return;
+		} else {
+			this.plugin.settings.todoListSync = {
+				listName,
+				listId
+			};
+			new Notice('设置同步列表成功√');
+			await this.plugin.saveSettings();
+			console.log(this.plugin.settings.todoListSync);
+		}
+
 	}
 }

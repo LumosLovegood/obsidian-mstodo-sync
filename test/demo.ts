@@ -1,4 +1,4 @@
-import { MicrosoftClientProvider } from "../clientProvider";
+import { MicrosoftClientProvider } from "../utils/microsoftClientProvider";
 // import { TodoTaskList } from '@microsoft/microsoft-graph-types';
 const cp = new MicrosoftClientProvider();
 import * as moment from 'moment';
@@ -9,15 +9,17 @@ import * as moment from 'moment';
 // })
 
 
-import { TodoApi } from "../todoApi";
+import { TodoApi } from "../api/todoApi";
 
 const api = new TodoApi(cp);
 api.getListIdByName("obsidian").then(
     res => {
         api.getListTasks(res).then(data => {
             if(data!=undefined && data.length!=0){
+            
                 // const createTime = moment(data[0].createdDateTime).format("dddd, MMMM Do YYYY, HH:mm");
                 console.log(moment(data[0].createdDateTime).isSame(moment(), "day"));
+                
             }
 
         })

@@ -1,7 +1,6 @@
-import { MicrosoftClientProvider } from "./clientProvider";
+import { MicrosoftClientProvider } from "../utils/microsoftClientProvider";
 import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
-
-
+import { Notice } from "obsidian";
 export class TodoApi {
     constructor(private readonly clientProvider: MicrosoftClientProvider) {
 
@@ -28,9 +27,17 @@ export class TodoApi {
         return (await client.api(endpoint).get()) as TodoTaskList;
     }
     async getListTasks(listId: string | undefined): Promise<TodoTask[] | undefined> {
+        if (!listId) return;
         const endpoint = `/me/todo/lists/${listId}/tasks`;
         const client = await this.clientProvider.getClient();
-        return (await client.api(endpoint).get()).value as TodoTask[];
+        const res = await client.api(endpoint).get()
+            .catch(err => {
+                new Notice("获取失败，请检查同步列表是否已删除");
+                return;
+            })
+        if(!res) return;
+        console.log("🚀 ~ res", res)
+        return res.value as TodoTask[];
     }
 
     async getTask(listId: string, taskId: string): Promise<TodoTask | undefined> {
@@ -38,7 +45,13 @@ export class TodoApi {
         const client = await this.clientProvider.getClient();
         return (await client.api(endpoint).get()) as TodoTask;
     }
-
+    async createTaskList(displayName: string): Promise<TodoTaskList | undefined> {
+        const client = await this.clientProvider.getClient();
+        return await client.api('/me/todo/lists')
+            .post({
+                displayName
+            })
+    }
     // Create tasks 
     async createTask(listId: string | undefined, title: string): Promise<undefined> {
         if (!listId) return;

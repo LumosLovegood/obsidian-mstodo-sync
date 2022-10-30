@@ -1,4 +1,4 @@
-import { ClientProvider } from "./clientProvider";
+import { ClientProvider } from "./utils/microsoftClientProvider";
 
 
 const cp = new ClientProvider();
