@@ -1,4 +1,14 @@
 import fetch from "node-fetch";
+export interface RawActivity {
+    content: string;
+    start_time: number;
+    end_time: number;
+    item: {
+        title: string;
+    };
+    total_time: number;
+    nature: 0 | 1 | 2;
+}
 
 
 export class UptimerApi {
@@ -24,7 +34,7 @@ export class UptimerApi {
     }
 
     public async getTodayActivities() {
-        return await fetch('https://apii.mytimelog.cn/api/TimeLog/listOnlyLogV2?categoryCode&channelCode&tag&keyword&pageNum=1&pageSize=999', {
+        return (await fetch('https://apii.mytimelog.cn/api/TimeLog/listOnlyLogV2?categoryCode&channelCode&tag&keyword&pageNum=1&pageSize=999', {
             method: 'POST',
             headers: this.header,
             body: JSON.stringify({
@@ -35,7 +45,7 @@ export class UptimerApi {
             })
         })
             .then(res => res.json())
-            .then(data => data.data);
+            .then(data => data.data)) as RawActivity[];
     }
 }
 export interface LoginResponse{

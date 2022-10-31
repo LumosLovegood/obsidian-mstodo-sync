@@ -1,3 +1,4 @@
+import { createTimeLine } from 'fromatter/createTimeline';
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { TodoApi, MicrosoftClientProvider } from './api/todoApi';
 import { UptimerApi } from './api/uptimerApi';
@@ -48,7 +49,7 @@ export default class MsTodoSync extends Plugin {
 				new SampleModal(this.app).open();
 			}
 		});
-		// This adds an editor command that can perform some operation on the current editor instance
+
 		this.addCommand({
 			id: 'add-microsoft-todo',
 			name: '获取微软待办',
@@ -57,7 +58,6 @@ export default class MsTodoSync extends Plugin {
 					new Notice('请先设置同步列表');
 					return;
 				}
-
 				/* TODO 测试发现删除某个列表之后，居然还可以通过listId查到，好神奇
 				本来想用下面代码替换一下，不过感觉好像对使用逻辑没什么太大影响，先不改了 */
 				// const listId = await this.api.getListIdByName(this.settings.todoListSync.listName);
@@ -67,24 +67,9 @@ export default class MsTodoSync extends Plugin {
 				// }
 				// const tasks = await this.api.getListTasks(listId);
 				const tasks = await this.todoApi.getListTasks(this.settings.todoListSync.listId);
-				console.log(editor.getSelection());
 				if (!tasks) return;
 				editor.replaceSelection(tasks.map(i => `- [ ] ${i.title} 创建于${window.moment(i.createdDateTime).format("HH:mm")}`).join("\n"));
 				new Notice('待办列表已获取');
-			}
-		});
-		this.addCommand({
-			id: 'add-uptimer',
-			name: '生成今日时间线',
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				if (!this.settings.uptimerToken) {
-					new Notice('请先登录获取token');
-					return;
-				}
-				const raw = await this.uptimerApi.getTodayActivities();
-				if (!raw) return;
-				editor.replaceSelection(raw.map((i: { item: { title: any; }; }) => `- [ ] ${i.item?.title}`).join("\n"));
-				new Notice('今日时间线已生成');
 			}
 		});
 		this.addCommand({
@@ -101,6 +86,21 @@ export default class MsTodoSync extends Plugin {
 				})).then(res => editor.replaceSelection(res.map(i => `- [ ] ${i.title} 创建于${window.moment(i.createdDateTime).format("HH:mm")}`).join("\n")));
 				
 				// this.todoApi.getListTasks()
+			}
+		});
+
+		this.addCommand({
+			id: 'add-uptimer',
+			name: '生成今日时间线',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				if (!this.settings.uptimerToken) {
+					new Notice('请先登录获取token');
+					return;
+				}
+				const timeline = await createTimeLine(this.uptimerApi);
+				if (!timeline) return;
+				editor.replaceSelection(timeline);
+				new Notice('今日时间线已生成');
 			}
 		});
 		// This adds a complex command that can check whether the current state of the app allows execution of the command
@@ -139,7 +139,7 @@ export default class MsTodoSync extends Plugin {
 			// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
 		}
 
-		this.todoApi = new TodoApi(new MicrosoftClientProvider(`${this.app.vault.configDir}/msal_cache.json`,this.app.vault.adapter));
+		this.todoApi = new TodoApi(await new MicrosoftClientProvider(`${this.app.vault.configDir}/msal_cache.json`,this.app.vault.adapter).getClient());
 	}
 
 	onunload() {

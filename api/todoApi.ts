@@ -4,12 +4,8 @@ import { Client } from "@microsoft/microsoft-graph-client";
 import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
 import { DataAdapter, Notice } from "obsidian";
 export class TodoApi {
-    private client: Client;
-    constructor(clientProvider: MicrosoftClientProvider) {
-        clientProvider.getClient().then(client => {
-            this.client = client;
-        })
-    }
+    
+    constructor(private readonly client: Client) {}
     // List operation
     async getLists(): Promise<TodoTaskList[] | undefined> {
         const endpoint = "/me/todo/lists";
