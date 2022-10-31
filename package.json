@@ -27,7 +27,6 @@
 		"@microsoft/microsoft-graph-client": "^3.0.2",
 		"@microsoft/microsoft-graph-types": "^2.25.0",
 		"isomorphic-fetch": "^3.0.0",
-		"node-fetch": "^2.6.1",
-		"open": "^8.4.0"
+		"node-fetch": "^2.6.1"
 	}
 }

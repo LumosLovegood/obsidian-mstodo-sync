@@ -140,7 +140,7 @@ export default class MsTodoSync extends Plugin {
 			// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
 		}
 
-		this.todoApi = new TodoApi(new MicrosoftClientProvider(this.app));
+		this.todoApi = new TodoApi(new MicrosoftClientProvider(`${this.app.vault.configDir}/msal_cache.json`,this.app.vault.adapter));
 	}
 
 	onunload() {
