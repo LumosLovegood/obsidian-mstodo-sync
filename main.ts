@@ -1,6 +1,5 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { TodoApi } from './api/todoApi';
-import { MicrosoftClientProvider } from './utils/microsoftClientProvider';
+import { TodoApi, MicrosoftClientProvider } from './api/todoApi';
 import { UptimerApi } from './api/uptimerApi';
 interface TodoListSync {
 	listName: string | undefined;
@@ -74,20 +73,20 @@ export default class MsTodoSync extends Plugin {
 				new Notice('待办列表已获取');
 			}
 		});
-		// this.addCommand({
-		// 	id: 'add-uptimer',
-		// 	name: '生成今日时间线',
-		// 	editorCallback: async (editor: Editor, view: MarkdownView) => {
-		// 		if (!this.settings.uptimerToken) {
-		// 			new Notice('请先登录获取token');
-		// 			return;
-		// 		}
-		// 		const raw = await this.uptimerApi.getTodayActivities();
-		// 		if (!raw) return;
-		// 		editor.replaceSelection(raw.map((i: { item: { title: any; }; }) => `- [ ] ${i.item?.title}`).join("\n"));
-		// 		new Notice('今日时间线已生成');
-		// 	}
-		// });
+		this.addCommand({
+			id: 'add-uptimer',
+			name: '生成今日时间线',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				if (!this.settings.uptimerToken) {
+					new Notice('请先登录获取token');
+					return;
+				}
+				const raw = await this.uptimerApi.getTodayActivities();
+				if (!raw) return;
+				editor.replaceSelection(raw.map((i: { item: { title: any; }; }) => `- [ ] ${i.item?.title}`).join("\n"));
+				new Notice('今日时间线已生成');
+			}
+		});
 		this.addCommand({
 			id: 'create-task',
 			name: '创建新待办',

@@ -1,7 +1,8 @@
-import { MicrosoftClientProvider } from "../utils/microsoftClientProvider";
-import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
-import { Notice } from "obsidian";
+import * as msal from "@azure/msal-node";
+import * as msalCommon from "@azure/msal-common";
 import { Client } from "@microsoft/microsoft-graph-client";
+import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
+import { DataAdapter, Notice } from "obsidian";
 export class TodoApi {
     private client: Client;
     constructor(clientProvider: MicrosoftClientProvider) {
@@ -9,7 +10,6 @@ export class TodoApi {
             this.client = client;
         })
     }
-
     // List operation
     async getLists(): Promise<TodoTaskList[] | undefined> {
         const endpoint = "/me/todo/lists";
@@ -37,7 +37,7 @@ export class TodoApi {
     }
 
     // Task operation
-    async getListTasks(listId: string,searchText?:string): Promise<TodoTask[] | undefined> {
+    async getListTasks(listId: string, searchText?: string): Promise<TodoTask[] | undefined> {
         if (!listId) return;
         const endpoint = `/me/todo/lists/${listId}/tasks`;
         const res = await this.client.api(endpoint).get()
@@ -53,7 +53,7 @@ export class TodoApi {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
         return (await this.client.api(endpoint).get()) as TodoTask;
     }
-    async createTask(listId: string|undefined, title: string): Promise<TodoTask> {
+    async createTask(listId: string | undefined, title: string): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks`;
         return await this.client.api(endpoint).post({
             title: title,
@@ -61,6 +61,94 @@ export class TodoApi {
                 content: '',
                 contentType: 'text'
             }
+        });
+    }
+}
+
+
+export class MicrosoftClientProvider {
+    private readonly clientId = "a1172059-5f55-45cd-9665-8dccc98c2587";
+    private readonly authority = "https://login.microsoftonline.com/consumers";
+    private readonly scopes: string[] = ['Tasks.ReadWrite', 'openid', 'profile'];
+    private pca: msal.PublicClientApplication;
+
+    constructor(private readonly cachePath: string, private readonly adapter: DataAdapter) {
+        const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
+            if (await this.adapter.exists(this.cachePath)) {
+                cacheContext.tokenCache.deserialize(await this.adapter.read(this.cachePath));
+            }
+        };
+        const afterCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
+            if (cacheContext.cacheHasChanged) {
+                await this.adapter.write(this.cachePath, cacheContext.tokenCache.serialize());
+            }
+        };
+        const cachePlugin = {
+            beforeCacheAccess,
+            afterCacheAccess
+        };
+        const config = {
+            auth: {
+                clientId: this.clientId,
+                authority: this.authority,
+            },
+            cache: {
+                cachePlugin
+            }
+        };
+        this.pca = new msal.PublicClientApplication(config);
+    }
+
+    private async getAccessToken() {
+        const msalCacheManager = this.pca.getTokenCache();
+        if (await this.adapter.exists(this.cachePath)) {
+            msalCacheManager.deserialize(await this.adapter.read(this.cachePath));
+        }
+        const accounts = await msalCacheManager.getAllAccounts();
+        if (accounts.length == 0) {
+            return await this.authByDevice();
+        } else {
+            return await this.authByCache(accounts[0])
+        }
+    }
+    private async authByDevice(): Promise<string> {
+        const deviceCodeRequest = {
+            deviceCodeCallback: (response: msalCommon.DeviceCodeResponse) => {
+                // for obsidian
+                window.open(response["verificationUri"])
+                new Notice("设备代码已复制到剪贴板,请在打开的浏览器界面输入");
+                navigator.clipboard.writeText(response['userCode']);
+                console.log("设备代码已复制到剪贴板", response['userCode']);
+            },
+            scopes: this.scopes,
+        };
+        return await this.pca.acquireTokenByDeviceCode(deviceCodeRequest).then(res => {
+            return res == null ? "error" : res['accessToken'];
+        });
+    }
+
+    private async authByCache(account: msal.AccountInfo): Promise<string> {
+        const silentRequest = {
+            account: account,
+            scopes: this.scopes,
+        };
+        return await this.pca.acquireTokenSilent(silentRequest)
+            .then(res => {
+                return res == null ? "error" : res['accessToken'];
+            })
+            .catch(async err => {
+                return await this.authByDevice();
+            });
+    }
+
+    public async getClient() {
+        const authProvider = async (callback: (arg0: string, arg1: string) => void) => {
+            const accessToken = await this.getAccessToken();
+            const error = " ";
+            callback(error, accessToken);
+        };
+        return Client.init({
+            authProvider
         });
     }
 }
