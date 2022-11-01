@@ -10,7 +10,6 @@ export interface RawActivity {
     nature: 0 | 1 | 2;
 }
 
-
 export class UptimerApi {
     private header: {[key:string]:string};
     constructor(token: string) {
@@ -57,7 +56,7 @@ export interface LoginResponse{
     }
 }
 
-export async function getUptimerToken(account: string, password: string):Promise<string> {
+export async function getUptimerToken(account: string, password: string):Promise<string | undefined> {
     return await fetch('https://apii.mytimelog.cn/api/User/login', {
         method: 'POST',
         headers: {
@@ -80,5 +79,6 @@ export async function getUptimerToken(account: string, password: string):Promise
             'password': password
         })
     }).then(res => res.json() as Promise<LoginResponse>)
-    .then(data  => data.data.userinfo.token);
+    .then(data  => data.data.userinfo.token)
+    .catch(err => undefined);
 }

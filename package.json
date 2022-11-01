@@ -26,6 +26,7 @@
 		"@azure/msal-node": "^1.14.2",
 		"@microsoft/microsoft-graph-client": "^3.0.2",
 		"@microsoft/microsoft-graph-types": "^2.25.0",
+		"mirai-js": "^2.8.7",
 		"node-fetch": "^2.6.1"
 	}
 }

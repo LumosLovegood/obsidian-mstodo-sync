@@ -4,18 +4,24 @@ import { Client } from "@microsoft/microsoft-graph-client";
 import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
 import { DataAdapter, Notice } from "obsidian";
 export class TodoApi {
-    
-    constructor(private readonly client: Client) {}
+
+    constructor(private readonly client: Client) { }
     // List operation
-    async getLists(): Promise<TodoTaskList[] | undefined> {
+    async getLists(searchPattern?:string): Promise<TodoTaskList[] | undefined> {
         const endpoint = "/me/todo/lists";
         const todoLists = (await this.client.api(endpoint).get()).value as TodoTaskList[];
-        return todoLists;
+        return await Promise.all(todoLists.map(async taskList => {
+            const containedTasks = await this.getListTasks(taskList.id,searchPattern);
+            return {
+                ...taskList,
+                tasks: containedTasks
+            }
+        }))
     }
     async getListIdByName(listName: string | undefined): Promise<string | undefined> {
         if (!listName) return;
         const endpoint = `/me/todo/lists`;
-        const res: TodoTaskList[] = (await this.client.api(endpoint).filter(`displayName eq '${listName}'`).get()).value;
+        const res: TodoTaskList[] = (await this.client.api(endpoint).filter(`contains(displayName,'${listName}')`).get()).value;
         if (!res || res.length == 0) return;
         const target = res[0] as TodoTaskList;
         return target.id;
@@ -25,7 +31,8 @@ export class TodoApi {
         const endpoint = `/me/todo/lists/${listId}`;
         return (await this.client.api(endpoint).get()) as TodoTaskList;
     }
-    async createTaskList(displayName: string): Promise<TodoTaskList | undefined> {
+    async createTaskList(displayName: string | undefined): Promise<TodoTaskList | undefined> {
+        if(!displayName) return;
         return await this.client.api('/me/todo/lists')
             .post({
                 displayName
@@ -33,10 +40,13 @@ export class TodoApi {
     }
 
     // Task operation
-    async getListTasks(listId: string, searchText?: string): Promise<TodoTask[] | undefined> {
+    async getListTasks(listId: string | undefined, searchText?: string): Promise<TodoTask[] | undefined> {
         if (!listId) return;
         const endpoint = `/me/todo/lists/${listId}/tasks`;
-        const res = await this.client.api(endpoint).get()
+        if(!searchText) return;
+        const res = await this.client.api(endpoint)
+            .filter(searchText)
+            .get()
             .catch(err => {
                 new Notice("获取失败，请检查同步列表是否已删除");
                 return;
@@ -49,12 +59,12 @@ export class TodoApi {
         const endpoint = `/me/todo/lists/${listId}/tasks/${taskId}`;
         return (await this.client.api(endpoint).get()) as TodoTask;
     }
-    async createTask(listId: string | undefined, title: string): Promise<TodoTask> {
+    async createTask(listId: string | undefined, title: string,body?:string): Promise<TodoTask> {
         const endpoint = `/me/todo/lists/${listId}/tasks`;
         return await this.client.api(endpoint).post({
             title: title,
             body: {
-                content: '',
+                content: body,
                 contentType: 'text'
             }
         });
