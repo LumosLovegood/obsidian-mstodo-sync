@@ -38,7 +38,7 @@ export async function createTodayTasks(todoApi: TodoApi,editor:Editor,dateFormat
         const lines = taskList.tasks?.map(task => {
             const createDate = window.moment(task.createdDateTime).format(dateFormat);
             const done = task.status == "completed" ? "x" : " ";
-            const date = createDate == now.format(dateFormat) ? "" : "🔎" + createDate;
+            const date = createDate == now.format(dateFormat) ? "" : `🔎[[${createDate}]]`;
             const body = !task.body?.content ? "" : "💡" + task.body.content;
             
             return `- [${done}] ${task.title}  ${date}  ${body}`;

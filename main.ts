@@ -4,38 +4,9 @@ import { TodoApi, MicrosoftClientProvider } from './api/todoApi';
 import { UptimerApi } from './api/uptimerApi';
 import { Bot, Message } from 'mirai-js'
 import { getBiliInfo } from './bot/bilibili';
-import { MsTodoSyncSettingTab } from 'gui/msTodoSyncSettingTab';
+import { DEFAULT_SETTINGS, MsTodoSyncSettings, MsTodoSyncSettingTab } from 'gui/msTodoSyncSettingTab';
 import { createTodayTasks, postTask } from 'command/msTodoCommand';
 
-interface MsTodoSyncSettings {
-	todoListSync: {
-		listName: string | undefined,
-		listId: string | undefined,
-	};
-	uptimer:{
-		email: string | undefined,
-		password: string | undefined,
-		token: string | undefined
-	};
-	bot: {
-		baseUrl: string,
-		verifyKey: string,
-		qq: number,
-	} | undefined
-}
-
-const DEFAULT_SETTINGS: MsTodoSyncSettings = {
-	todoListSync:{
-		listName: undefined,
-		listId: undefined,
-	},
-	uptimer: {
-		email: undefined,
-		password: undefined,
-		token: undefined
-	},
-	bot: undefined
-}
 
 export default class MsTodoSync extends Plugin {
 	settings: MsTodoSyncSettings;

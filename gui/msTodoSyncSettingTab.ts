@@ -2,6 +2,37 @@ import MsTodoSync from "../main";
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import { getUptimerToken } from "api/uptimerApi";
 
+
+export interface MsTodoSyncSettings {
+	todoListSync: {
+		listName: string | undefined,
+		listId: string | undefined,
+	};
+	uptimer:{
+		email: string | undefined,
+		password: string | undefined,
+		token: string | undefined
+	};
+	bot: {
+		baseUrl: string,
+		verifyKey: string,
+		qq: number,
+	} | undefined
+}
+
+export const DEFAULT_SETTINGS: MsTodoSyncSettings = {
+	todoListSync:{
+		listName: undefined,
+		listId: undefined,
+	},
+	uptimer: {
+		email: undefined,
+		password: undefined,
+		token: undefined
+	},
+	bot: undefined
+}
+
 export class MsTodoSyncSettingTab extends PluginSettingTab {
     plugin: MsTodoSync;
     constructor(app: App, plugin: MsTodoSync) {
