@@ -1,99 +1,97 @@
-import { createTimeLine } from 'fromatter/createTimeline';
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { createTimeLine } from 'command/uptimerCommand';
+import { Editor, MarkdownView, Notice, Plugin } from 'obsidian';
 import { TodoApi, MicrosoftClientProvider } from './api/todoApi';
 import { UptimerApi } from './api/uptimerApi';
-interface TodoListSync {
-	listName: string | undefined;
-	listId: string | undefined
-}
+import { Bot, Message } from 'mirai-js'
+import { getBiliInfo } from './bot/bilibili';
+import { MsTodoSyncSettingTab } from 'gui/msTodoSyncSettingTab';
+import { createTodayTasks, postTask } from 'command/msTodoCommand';
+
 interface MsTodoSyncSettings {
-	mySetting: string;
-	todoListSync: TodoListSync;
-	uptimerToken: string | undefined;
+	todoListSync: {
+		listName: string | undefined,
+		listId: string | undefined,
+	};
+	uptimer:{
+		email: string | undefined,
+		password: string | undefined,
+		token: string | undefined
+	};
+	bot: {
+		baseUrl: string,
+		verifyKey: string,
+		qq: number,
+	} | undefined
 }
 
 const DEFAULT_SETTINGS: MsTodoSyncSettings = {
-	mySetting: 'default',
-	todoListSync: {
+	todoListSync:{
 		listName: undefined,
-		listId: undefined
+		listId: undefined,
 	},
-	uptimerToken: undefined
+	uptimer: {
+		email: undefined,
+		password: undefined,
+		token: undefined
+	},
+	bot: undefined
 }
 
 export default class MsTodoSync extends Plugin {
 	settings: MsTodoSyncSettings;
 	public todoApi: TodoApi;
 	public uptimerApi: UptimerApi;
+	public bot: Bot;
 
 	async onload() {
 		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
-		// This adds a simple command that can be triggered anywhere
+		// 在右键菜单中注册命令：将选中的文字创建微软待办
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor, view) => {
+				menu.addItem((item) => {
+					item.setTitle("同步到微软待办")
+						.onClick(async () => await postTask(this.todoApi, this.settings.todoListSync?.listId, editor,this.app.workspace.getActiveFile()?.basename));
+				});
+			})
+		);
+		// 在右键菜单中注册命令：将选中的文字创建微软待办并替换
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor, view) => {
+				menu.addItem((item) => {
+					item.setTitle("同步到微软待办并替换")
+						.onClick(async () => await postTask(this.todoApi, this.settings.todoListSync?.listId, editor,this.app.workspace.getActiveFile()?.basename,true));
+				});
+			})
+		);
+		// 注册命令：将选中的文字创建微软待办
 		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
+			id: 'only-create-task',
+			name: '同步到微软待办',
+			editorCallback: async (editor: Editor, view: MarkdownView) =>
+				await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename)
+		});
+		this.addCommand({
+			id: 'create-task-replace',
+			name: '同步到微软待办并替换',
+			editorCallback: async (editor: Editor, view: MarkdownView) =>
+				await postTask(this.todoApi, this.settings.todoListSync?.listId, editor,this.app.workspace.getActiveFile()?.basename,true)
 		});
 
+		// 注册命令：将选中的文字创建微软待办并替换
 		this.addCommand({
 			id: 'add-microsoft-todo',
 			name: '获取微软待办',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				if (!this.settings.todoListSync.listId) {
-					new Notice('请先设置同步列表');
-					return;
-				}
-				/* TODO 测试发现删除某个列表之后，居然还可以通过listId查到，好神奇
-				本来想用下面代码替换一下，不过感觉好像对使用逻辑没什么太大影响，先不改了 */
-				// const listId = await this.api.getListIdByName(this.settings.todoListSync.listName);
-				// if (!listId) {
-				// 	new Notice("获取失败，请检查同步列表是否已删除");
-				// 	return;
-				// }
-				// const tasks = await this.api.getListTasks(listId);
-				const tasks = await this.todoApi.getListTasks(this.settings.todoListSync.listId);
-				if (!tasks) return;
-				editor.replaceSelection(tasks.map(i => `- [ ] ${i.title} 创建于${window.moment(i.createdDateTime).format("HH:mm")}`).join("\n"));
-				new Notice('待办列表已获取');
+				// TODO 模板化日期
+				await createTodayTasks(this.todoApi,editor,"yyyy年M月D日");
 			}
 		});
-		this.addCommand({
-			id: 'create-task',
-			name: '创建新待办',
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				if (!this.settings.todoListSync.listId) {
-					new Notice('请先设置同步列表');
-					return;
-				}
-				Promise.all(editor.getSelection().replace(/(- \[ \] )|\*|^> |^#* |- /gm, "").split("\n").filter(s => s != "").map(async s => {
-					const line = s.trim();
-					return await this.todoApi.createTask(this.settings.todoListSync.listId, line);
-				})).then(res => editor.replaceSelection(res.map(i => `- [ ] ${i.title} 创建于${window.moment(i.createdDateTime).format("HH:mm")}`).join("\n")));
-				
-				// this.todoApi.getListTasks()
-			}
-		});
-
+		
 		this.addCommand({
 			id: 'add-uptimer',
 			name: '生成今日时间线',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				if (!this.settings.uptimerToken) {
+				if (!this.settings.uptimer?.token) {
 					new Notice('请先登录获取token');
 					return;
 				}
@@ -103,47 +101,63 @@ export default class MsTodoSync extends Plugin {
 				new Notice('今日时间线已生成');
 			}
 		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
+		this.addCommand({
+			id: 'open-bot',
+			name: '打开机器人',
+			callback: async () => {
+				if (!this.settings.bot) {
+					new Notice("请先配置机器人信息")
+					return;
 				}
+				this.bot = new Bot();
+				await this.bot.open(this.settings.bot).then(() => {
+					new Notice("机器人已开启√")
+					const item = this.addStatusBarItem();
+					item.setText("机器人运行中");
+					this.addCommand({
+						id: 'to-close-bot',
+						name: '关闭机器人',
+						callback: (() => {
+							if (this.bot != undefined) {
+								this.bot.close();
+								new Notice("机器人已关闭");
+								item.empty();
+							}
+						})
+					});
+				})
+				this.bot.on('FriendMessage', async data => {
+					const sender = data.sender;
+					const message = data.messageChain;
+					if (message[1].type == "Plain" && message[1].text?.match(/^https*:\/\/www\.bilibili\.com\/video.*/g)) {
+						await this.bot.sendMessage({
+							friend: sender.id,
+							message: new Message().addImageUrl(await getBiliInfo(message[1].text))
+						})
+					}
+				})
 			}
 		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new MsTodoSyncSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-
-		if (this.settings.uptimerToken != undefined) {
-			this.uptimerApi = new UptimerApi(this.settings.uptimerToken);
-			// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
+		if (this.settings.uptimer?.token != undefined) {
+			this.uptimerApi = new UptimerApi(this.settings.uptimer.token);
 		}
+		this.todoApi = new TodoApi(await new MicrosoftClientProvider(`${this.app.vault.configDir}/msal_cache.json`, this.app.vault.adapter).getClient());
+		// console.log(await this.todoApi.getLists())
+		// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
+		// This creates an icon in the left ribbon.
+		// const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
+		// });
+		// Perform additional things with the ribbon
+		// ribbonIconEl.addClass('my-plugin-ribbon-class');
 
-		this.todoApi = new TodoApi(await new MicrosoftClientProvider(`${this.app.vault.configDir}/msal_cache.json`,this.app.vault.adapter).getClient());
+		// console.log(await this.todoApi.getListIdByName("obsidian"))
 	}
 
 	onunload() {
-
+		this.bot?.close();
 	}
 
 	async loadSettings() {
@@ -155,82 +169,3 @@ export default class MsTodoSync extends Plugin {
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
-	}
-}
-
-class MsTodoSyncSettingTab extends PluginSettingTab {
-	plugin: MsTodoSync;
-	todoListNameSync: string;
-	constructor(app: App, plugin: MsTodoSync) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const { containerEl } = this;
-
-		containerEl.empty();
-
-		containerEl.createEl('h2', { text: 'Microsoft Todo设置' });
-
-		new Setting(containerEl)
-			.setName('输入要同步的微软Todo列表名称')
-			.setDesc('如不存在则以该名称创建列表')
-			.addText(text => text
-				// .setPlaceholder('输入Todo列表名称')
-				.setValue(this.plugin.settings.todoListSync.listName ?? "")
-				.onChange(async (value) => {
-					this.todoListNameSync = value;
-					console.log("🚀 ~ value", value)
-				}));
-
-		// new Setting(containerEl)
-		// 	.setName('Setting #1')
-		// 	.setDesc('It\'s a secret')
-		// 	.addText(text => text
-		// 		.setPlaceholder('Enter your secret')
-		// 		.setValue(this.plugin.settings.mySetting)
-		// 		.onChange(async (value) => {
-		// 			console.log('Secret: ' + value);
-		// 			this.plugin.settings.mySetting = value;
-		// 			await this.plugin.saveSettings();
-		// 		}));
-	}
-	async hide() {
-		const listName = this.todoListNameSync ?? this.plugin.settings.todoListSync.listName;
-		if (!listName) {
-			new Notice("同步列表未设置");
-			return;
-		}
-		let listId = await this.plugin.todoApi.getListIdByName(listName);
-		if (!listId) {
-			listId = (await this.plugin.todoApi.createTaskList(listName))?.id;
-		}
-		if (!listId) {
-			new Notice('创建列表失败');
-			return;
-		} else {
-			this.plugin.settings.todoListSync = {
-				listName,
-				listId
-			};
-			new Notice('设置同步列表成功√');
-			await this.plugin.saveSettings();
-			console.log(this.plugin.settings.todoListSync);
-		}
-
-	}
-}

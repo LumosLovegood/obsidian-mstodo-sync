@@ -16,7 +16,7 @@ export async function createTimeLine(uptimerApi: UptimerApi){
     const startOfDay = window.moment().startOf("day").unix();
     return await uptimerApi.getTodayActivities()
     .then(data => {
-        const activities = data.map( (item: RawActivity) =>{
+        const activities = data?.map( (item: RawActivity) =>{
             if(item.start_time<startOfDay){
                 return {isValid:false} as Activity;
             }
@@ -41,7 +41,7 @@ export async function createTimeLine(uptimerApi: UptimerApi){
                 ganttForm: `${item.item.title} :${sign},${startTime},${endTime}`,
                 nature: item.nature
             } as Activity;
-        }).filter(i => i.isValid).reverse();
+        })?.filter(i => i.isValid)?.reverse();
         const gantt = createGantt(activities);
         return `
 ${gantt}
@@ -50,7 +50,8 @@ ${activities.map(i => i?.desc).join("\n")}
     });
 }
 
-export function createGantt(activities:Activity[]):string{
+export function createGantt(activities:Activity[] | undefined){
+    if(!activities) return;
     const positives = activities.filter(i => i?.nature===0).map(e=>e?.ganttForm);
     const ordinarys = activities.filter(i => i?.nature===2).map(e=>e?.ganttForm);
     const negatives = activities.filter(i => i?.nature===1).map(e=>e?.ganttForm);
