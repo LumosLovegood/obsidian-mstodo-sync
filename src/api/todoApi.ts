@@ -2,7 +2,7 @@ import * as msal from "@azure/msal-node";
 import * as msalCommon from "@azure/msal-common";
 import { Client } from "@microsoft/microsoft-graph-client";
 import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
-import { DataAdapter, Notice, App } from 'obsidian';
+import { DataAdapter, Notice} from 'obsidian';
 import { MicrosoftAuthModal } from '../gui/microsoftAuthModal';
 export class TodoApi {
 
@@ -79,9 +79,13 @@ export class MicrosoftClientProvider {
     private readonly scopes: string[] = ['Tasks.ReadWrite', 'openid', 'profile'];
     private readonly pca: msal.PublicClientApplication;
     private readonly adapter: DataAdapter;
+    private readonly cachePath: string
 
-    constructor(private readonly cachePath: string, private readonly app:App) {
+    constructor() {
+
         this.adapter = app.vault.adapter;
+        this.cachePath = `${app.vault.configDir}/Microsoft_cache.json`;
+
         const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
             if (await this.adapter.exists(this.cachePath)) {
                 cacheContext.tokenCache.deserialize(await this.adapter.read(this.cachePath));
@@ -125,7 +129,7 @@ export class MicrosoftClientProvider {
             deviceCodeCallback: (response: msalCommon.DeviceCodeResponse) => {
                 new Notice("设备代码已复制到剪贴板,请在打开的浏览器界面输入");
                 navigator.clipboard.writeText(response['userCode']);
-                new MicrosoftAuthModal(this.app,response['userCode'],response["verificationUri"]).open()
+                new MicrosoftAuthModal(response['userCode'],response["verificationUri"]).open()
                 console.log("设备代码已复制到剪贴板", response['userCode']);
             },
             scopes: this.scopes,

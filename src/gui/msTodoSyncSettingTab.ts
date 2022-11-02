@@ -1,5 +1,5 @@
 import MsTodoSync from "../main";
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { Notice, PluginSettingTab, Setting } from "obsidian";
 import { getUptimerToken } from "../api/uptimerApi";
 
 
@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS: MsTodoSyncSettings = {
 
 export class MsTodoSyncSettingTab extends PluginSettingTab {
     plugin: MsTodoSync;
-    constructor(app: App, plugin: MsTodoSync) {
+    constructor(plugin: MsTodoSync) {
         super(app, plugin);
         this.plugin = plugin;
     }

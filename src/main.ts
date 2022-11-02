@@ -6,7 +6,6 @@ import { Bot } from 'mirai-js'
 import { DEFAULT_SETTINGS, MsTodoSyncSettings, MsTodoSyncSettingTab } from './gui/msTodoSyncSettingTab';
 import { createTodayTasks, postTask } from './command/msTodoCommand';
 import { listenEvents } from './bot/listenEvents';
-// import { MicrosoftAuthModal } from './gui/microsoftAuthModal';
 
 
 export default class MsTodoSync extends Plugin {
@@ -104,13 +103,13 @@ export default class MsTodoSync extends Plugin {
 				this.bot.on('FriendMessage', async data => await listenEvents(data, this.bot));
 			}
 		});
-		this.addSettingTab(new MsTodoSyncSettingTab(this.app, this));
+		this.addSettingTab(new MsTodoSyncSettingTab(this));
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		if (this.settings.uptimer?.token != undefined) {
 			this.uptimerApi = new UptimerApi(this.settings.uptimer.token);
 		}
-		this.todoApi = new TodoApi(await new MicrosoftClientProvider(`${this.app.vault.configDir}/Microsoft_cache.json`, this.app).getClient());
-		// new MicrosoftAuthModal(this.app,"hello","http://www.lumosmoon.life").open()
+		this.todoApi = new TodoApi(await new MicrosoftClientProvider().getClient());
+
 		// const a = this.app.vault.getAbstractFileByPath('0进行中/00Today/致谢.md')
 		// if(a) await this.app.vault.read(a)
 		// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));

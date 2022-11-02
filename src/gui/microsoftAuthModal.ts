@@ -1,7 +1,7 @@
-import { App, Modal } from "obsidian";
+import { Modal } from "obsidian";
 
 export class MicrosoftAuthModal extends Modal{
-    constructor(app:App,private readonly deviceCode:string, private readonly authUrl:string){
+    constructor(private readonly deviceCode:string, private readonly authUrl:string){
         super(app)
     }
     onOpen(): void {
