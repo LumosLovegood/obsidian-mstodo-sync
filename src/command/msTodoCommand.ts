@@ -3,6 +3,10 @@ import { TodoApi } from '../api/todoApi';
 
 
 export async function postTask(todoApi: TodoApi, listId: string | undefined, editor: Editor, fileName:string|undefined, replace?: boolean) {
+    if(!editor.somethingSelected()){
+        new Notice("好像没有选中什么");
+        return;
+    }
     if (!listId) {
         new Notice('请先设置同步列表');
         return;

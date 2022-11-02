@@ -6,3 +6,14 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+.auth-modal {
+    /* align-items: center; */
+    align-self: center;
+    align-content: center;
+    align-items: center;
+    justify-items: center;
+    justify-self: center;
+    justify-content: center;
+    text-align: center;
+    /* opacity: 0; */
+}

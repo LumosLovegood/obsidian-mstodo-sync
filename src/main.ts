@@ -6,6 +6,7 @@ import { Bot } from 'mirai-js'
 import { DEFAULT_SETTINGS, MsTodoSyncSettings, MsTodoSyncSettingTab } from './gui/msTodoSyncSettingTab';
 import { createTodayTasks, postTask } from './command/msTodoCommand';
 import { listenEvents } from './bot/listenEvents';
+// import { MicrosoftAuthModal } from './gui/microsoftAuthModal';
 
 
 export default class MsTodoSync extends Plugin {
@@ -21,7 +22,8 @@ export default class MsTodoSync extends Plugin {
 			this.app.workspace.on("editor-menu", (menu, editor, view) => {
 				menu.addItem((item) => {
 					item.setTitle("同步到微软待办")
-						.onClick(async () => await postTask(this.todoApi, this.settings.todoListSync?.listId, editor,this.app.workspace.getActiveFile()?.basename));
+						.onClick(async () =>
+							await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename));
 				});
 			})
 		);
@@ -30,7 +32,8 @@ export default class MsTodoSync extends Plugin {
 			this.app.workspace.on("editor-menu", (menu, editor, view) => {
 				menu.addItem((item) => {
 					item.setTitle("同步到微软待办并替换")
-						.onClick(async () => await postTask(this.todoApi, this.settings.todoListSync?.listId, editor,this.app.workspace.getActiveFile()?.basename,true));
+						.onClick(async () =>
+							await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename, true));
 				});
 			})
 		);
@@ -45,7 +48,7 @@ export default class MsTodoSync extends Plugin {
 			id: 'create-task-replace',
 			name: '同步到微软待办并替换',
 			editorCallback: async (editor: Editor, view: MarkdownView) =>
-				await postTask(this.todoApi, this.settings.todoListSync?.listId, editor,this.app.workspace.getActiveFile()?.basename,true)
+				await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename, true)
 		});
 
 		// 注册命令：将选中的文字创建微软待办并替换
@@ -54,10 +57,10 @@ export default class MsTodoSync extends Plugin {
 			name: '获取微软待办',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				// TODO 模板化日期
-				await createTodayTasks(this.todoApi,editor,"yyyy年M月D日");
+				await createTodayTasks(this.todoApi, editor, "yyyy年M月D日");
 			}
 		});
-		
+
 		this.addCommand({
 			id: 'add-uptimer',
 			name: '生成今日时间线',
@@ -98,7 +101,7 @@ export default class MsTodoSync extends Plugin {
 						})
 					});
 				})
-				this.bot.on('FriendMessage', async data => await listenEvents(data,this.bot));
+				this.bot.on('FriendMessage', async data => await listenEvents(data, this.bot));
 			}
 		});
 		this.addSettingTab(new MsTodoSyncSettingTab(this.app, this));
@@ -106,8 +109,9 @@ export default class MsTodoSync extends Plugin {
 		if (this.settings.uptimer?.token != undefined) {
 			this.uptimerApi = new UptimerApi(this.settings.uptimer.token);
 		}
-		this.todoApi = new TodoApi(await new MicrosoftClientProvider(`${this.app.vault.configDir}/msal_cache.json`, this.app.vault.adapter).getClient());
-		console.log(this)
+		this.todoApi = new TodoApi(await new MicrosoftClientProvider(`${this.app.vault.configDir}/Microsoft_cache.json`, this.app).getClient());
+		// new MicrosoftAuthModal(this.app,"hello","http://www.lumosmoon.life").open()
+
 		// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
 		// This creates an icon in the left ribbon.
 		// const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {

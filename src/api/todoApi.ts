@@ -2,7 +2,8 @@ import * as msal from "@azure/msal-node";
 import * as msalCommon from "@azure/msal-common";
 import { Client } from "@microsoft/microsoft-graph-client";
 import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
-import { DataAdapter, Notice } from "obsidian";
+import { DataAdapter, Notice, App } from 'obsidian';
+import { MicrosoftAuthModal } from '../gui/microsoftAuthModal';
 export class TodoApi {
 
     constructor(private readonly client: Client) { }
@@ -76,9 +77,11 @@ export class MicrosoftClientProvider {
     private readonly clientId = "a1172059-5f55-45cd-9665-8dccc98c2587";
     private readonly authority = "https://login.microsoftonline.com/consumers";
     private readonly scopes: string[] = ['Tasks.ReadWrite', 'openid', 'profile'];
-    private pca: msal.PublicClientApplication;
+    private readonly pca: msal.PublicClientApplication;
+    private readonly adapter: DataAdapter;
 
-    constructor(private readonly cachePath: string, private readonly adapter: DataAdapter) {
+    constructor(private readonly cachePath: string, private readonly app:App) {
+        this.adapter = app.vault.adapter;
         const beforeCacheAccess = async (cacheContext: msalCommon.TokenCacheContext) => {
             if (await this.adapter.exists(this.cachePath)) {
                 cacheContext.tokenCache.deserialize(await this.adapter.read(this.cachePath));
@@ -120,10 +123,9 @@ export class MicrosoftClientProvider {
     private async authByDevice(): Promise<string> {
         const deviceCodeRequest = {
             deviceCodeCallback: (response: msalCommon.DeviceCodeResponse) => {
-                // for obsidian
-                window.open(response["verificationUri"])
                 new Notice("设备代码已复制到剪贴板,请在打开的浏览器界面输入");
                 navigator.clipboard.writeText(response['userCode']);
+                new MicrosoftAuthModal(this.app,response['userCode'],response["verificationUri"]).open()
                 console.log("设备代码已复制到剪贴板", response['userCode']);
             },
             scopes: this.scopes,
