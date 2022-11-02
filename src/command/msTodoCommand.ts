@@ -2,8 +2,8 @@ import { Editor, Notice } from 'obsidian';
 import { TodoApi } from '../api/todoApi';
 
 
-export async function postTask(todoApi: TodoApi, listId: string | undefined, editor: Editor, fileName:string|undefined, replace?: boolean) {
-    if(!editor.somethingSelected()){
+export async function postTask(todoApi: TodoApi, listId: string | undefined, editor: Editor, fileName: string | undefined, replace?: boolean) {
+    if (!editor.somethingSelected()) {
         new Notice("好像没有选中什么");
         return;
     }
@@ -27,8 +27,8 @@ export async function postTask(todoApi: TodoApi, listId: string | undefined, edi
     });
 }
 
-export async function createTodayTasks(todoApi: TodoApi,editor:Editor,dateFormat:string) {
-    new Notice("获取微软待办中",3000);
+export async function createTodayTasks(todoApi: TodoApi, dateFormat: string, editor?: Editor) {
+    new Notice("获取微软待办中", 3000);
     const now = window.moment();
     const pattern = `status ne 'completed' or completedDateTime/dateTime ge '${now.format("yyyy-MM-DD")}'`
     const taskLists = await todoApi.getLists(pattern);
@@ -37,20 +37,24 @@ export async function createTodayTasks(todoApi: TodoApi,editor:Editor,dateFormat
         return;
     }
     const segments = taskLists.map(taskList => {
-        if(!taskList.tasks || taskList.tasks.length==0) return;
-        taskList.tasks.sort((a,b) => a.status=="completed"?1:-1)
+        if (!taskList.tasks || taskList.tasks.length == 0) return;
+        taskList.tasks.sort((a, b) => a.status == "completed" ? 1 : -1)
         const lines = taskList.tasks?.map(task => {
             const createDate = window.moment(task.createdDateTime).format(dateFormat);
             const done = task.status == "completed" ? "x" : " ";
             const date = createDate == now.format(dateFormat) ? "" : `🔎[[${createDate}]]`;
             const body = !task.body?.content ? "" : "💡" + task.body.content;
-            
+
             return `- [${done}] ${task.title}  ${date}  ${body}`;
         })
         return `#### ${taskList.displayName}
 ${lines?.join('\n')}
 `
     })
-    editor.replaceSelection(segments.filter(s => s!=undefined).join("\n\n"));
+        .filter(s => s != undefined).join("\n\n")
+
     new Notice("待办列表已获取");
+    if (editor) editor.replaceSelection(segments);
+    else return segments;
+
 }

@@ -5,8 +5,10 @@ import { TodoTask, TodoTaskList } from '@microsoft/microsoft-graph-types';
 import { DataAdapter, Notice} from 'obsidian';
 import { MicrosoftAuthModal } from '../gui/microsoftAuthModal';
 export class TodoApi {
-
-    constructor(private readonly client: Client) { }
+    private client: Client
+    constructor() {
+        new MicrosoftClientProvider().getClient().then(client => this.client = client);
+    }
     // List operation
     async getLists(searchPattern?:string): Promise<TodoTaskList[] | undefined> {
         const endpoint = "/me/todo/lists";
@@ -53,7 +55,6 @@ export class TodoApi {
                 return;
             })
         if (!res) return;
-        console.log("🚀 ~ res", res)
         return res.value as TodoTask[];
     }
     async getTask(listId: string, taskId: string): Promise<TodoTask | undefined> {

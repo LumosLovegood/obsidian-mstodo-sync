@@ -16,7 +16,8 @@ export interface MsTodoSyncSettings {
     bot: {
         baseUrl: string,
         verifyKey: string,
-        qq: number,
+        qq: number | undefined,
+        autoLaunch: boolean
     } | undefined
     diary: {
         folder: string,

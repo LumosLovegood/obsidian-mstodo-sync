@@ -1,18 +1,18 @@
 import { createTimeLine } from './command/uptimerCommand';
-import { Editor, MarkdownView, Notice, Plugin } from 'obsidian';
-import { TodoApi, MicrosoftClientProvider } from './api/todoApi';
+import { Editor, MarkdownView, Plugin } from 'obsidian';
+import { TodoApi } from './api/todoApi';
 import { UptimerApi } from './api/uptimerApi';
-import { Bot } from 'mirai-js'
 import { DEFAULT_SETTINGS, MsTodoSyncSettings, MsTodoSyncSettingTab } from './gui/msTodoSyncSettingTab';
 import { createTodayTasks, postTask } from './command/msTodoCommand';
-import { listenEvents } from './bot/listenEvents';
+import { BotManager } from './bot/botManager';
+import { createTodaySummary } from './command/summaryCommand';
 
 
 export default class MsTodoSync extends Plugin {
 	settings: MsTodoSyncSettings;
 	public todoApi: TodoApi;
 	public uptimerApi: UptimerApi;
-	public bot: Bot;
+	public botManager: BotManager = new BotManager(this);
 
 	async onload() {
 		await this.loadSettings();
@@ -39,13 +39,13 @@ export default class MsTodoSync extends Plugin {
 		// 注册命令：将选中的文字创建微软待办
 		this.addCommand({
 			id: 'only-create-task',
-			name: '同步到微软待办',
+			name: 'Post the selection as todos to MsTodo.',
 			editorCallback: async (editor: Editor, view: MarkdownView) =>
 				await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename)
 		});
 		this.addCommand({
 			id: 'create-task-replace',
-			name: '同步到微软待办并替换',
+			name: 'Post the selection as todos to MsTodo and Replace.',
 			editorCallback: async (editor: Editor, view: MarkdownView) =>
 				await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename, true)
 		});
@@ -53,65 +53,42 @@ export default class MsTodoSync extends Plugin {
 		// 注册命令：将选中的文字创建微软待办并替换
 		this.addCommand({
 			id: 'add-microsoft-todo',
-			name: '获取微软待办',
+			name: 'Insert the MsTodo summary.',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				// TODO 模板化日期
-				await createTodayTasks(this.todoApi, editor, "yyyy年M月D日");
+				await createTodayTasks(this.todoApi, "yyyy年M月D日", editor);
 			}
 		});
-
 		this.addCommand({
 			id: 'add-uptimer',
-			name: '生成今日时间线',
+			name: 'Insert the uptimer Timeline.',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				if (!this.settings.uptimer?.token) {
-					new Notice('请先登录获取token');
-					return;
-				}
-				const timeline = await createTimeLine(this.uptimerApi);
-				if (!timeline) return;
-				editor.replaceSelection(timeline);
-				new Notice('今日时间线已生成');
+				await createTimeLine(this.uptimerApi, editor);
 			}
+		});
+		this.addCommand({
+			id: 'add-summary',
+			name: 'Insert today\'s summary to diary.',
+			callback: async () => await createTodaySummary(this.uptimerApi,this.todoApi,this.app.vault,this.settings)
 		});
 
 		this.addCommand({
 			id: 'open-bot',
-			name: '打开机器人',
-			callback: async () => {
-				if (!this.settings.bot) {
-					new Notice("请先配置机器人信息")
-					return;
-				}
-				this.bot = new Bot();
-				await this.bot.open(this.settings.bot).then(() => {
-					new Notice("机器人已开启√")
-					const item = this.addStatusBarItem();
-					item.setText("机器人运行中");
-					this.addCommand({
-						id: 'to-close-bot',
-						name: '关闭机器人',
-						callback: (() => {
-							if (this.bot != undefined) {
-								this.bot?.close();
-								new Notice("机器人已关闭");
-								item.empty();
-							}
-						})
-					});
-				})
-				this.bot.on('FriendMessage', async data => await listenEvents(data, this.bot));
-			}
+			name: 'Launch the bot.',
+			callback: async () => this.botManager.launch()
 		});
+
 		this.addSettingTab(new MsTodoSyncSettingTab(this));
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		if (this.settings.uptimer?.token != undefined) {
 			this.uptimerApi = new UptimerApi(this.settings.uptimer.token);
 		}
-		this.todoApi = new TodoApi(await new MicrosoftClientProvider().getClient());
+		this.todoApi = new TodoApi();
+		if(this.settings.bot?.autoLaunch){
+			this.botManager.launch();
+		}
 
-		// const a = this.app.vault.getAbstractFileByPath('0进行中/00Today/致谢.md')
-		// if(a) await this.app.vault.read(a)
+		// const a = this.app.vault.getAbstractFileByPath('0进行中/00Today/未命名 2.md')
+		// if(a) await this.app.vault.append(a,"hello")
 		// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
 		// This creates an icon in the left ribbon.
 		// const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
@@ -122,8 +99,8 @@ export default class MsTodoSync extends Plugin {
 		// console.log(await this.todoApi.getListIdByName("obsidian"))
 	}
 
-	onunload() {
-		this.bot?.close();
+	async onunload() {
+		await this.botManager.stop();
 	}
 
 	async loadSettings() {
