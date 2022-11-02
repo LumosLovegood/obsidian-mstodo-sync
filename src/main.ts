@@ -111,7 +111,8 @@ export default class MsTodoSync extends Plugin {
 		}
 		this.todoApi = new TodoApi(await new MicrosoftClientProvider(`${this.app.vault.configDir}/Microsoft_cache.json`, this.app).getClient());
 		// new MicrosoftAuthModal(this.app,"hello","http://www.lumosmoon.life").open()
-
+		// const a = this.app.vault.getAbstractFileByPath('0进行中/00Today/致谢.md')
+		// if(a) await this.app.vault.read(a)
 		// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
 		// This creates an icon in the left ribbon.
 		// const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
