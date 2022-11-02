@@ -1,6 +1,6 @@
 import MsTodoSync from "../main";
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
-import { getUptimerToken } from "api/uptimerApi";
+import { getUptimerToken } from "../api/uptimerApi";
 
 
 export interface MsTodoSyncSettings {

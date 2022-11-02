@@ -1,11 +1,11 @@
-import { createTimeLine } from 'command/uptimerCommand';
+import { createTimeLine } from './command/uptimerCommand';
 import { Editor, MarkdownView, Notice, Plugin } from 'obsidian';
 import { TodoApi, MicrosoftClientProvider } from './api/todoApi';
 import { UptimerApi } from './api/uptimerApi';
-import { Bot, Message } from 'mirai-js'
-import { getBiliInfo } from './bot/bilibili';
-import { DEFAULT_SETTINGS, MsTodoSyncSettings, MsTodoSyncSettingTab } from 'gui/msTodoSyncSettingTab';
-import { createTodayTasks, postTask } from 'command/msTodoCommand';
+import { Bot } from 'mirai-js'
+import { DEFAULT_SETTINGS, MsTodoSyncSettings, MsTodoSyncSettingTab } from './gui/msTodoSyncSettingTab';
+import { createTodayTasks, postTask } from './command/msTodoCommand';
+import { listenEvents } from './bot/listenEvents';
 
 
 export default class MsTodoSync extends Plugin {
@@ -91,23 +91,14 @@ export default class MsTodoSync extends Plugin {
 						name: '关闭机器人',
 						callback: (() => {
 							if (this.bot != undefined) {
-								this.bot.close();
+								this.bot?.close();
 								new Notice("机器人已关闭");
 								item.empty();
 							}
 						})
 					});
 				})
-				this.bot.on('FriendMessage', async data => {
-					const sender = data.sender;
-					const message = data.messageChain;
-					if (message[1].type == "Plain" && message[1].text?.match(/^https*:\/\/www\.bilibili\.com\/video.*/g)) {
-						await this.bot.sendMessage({
-							friend: sender.id,
-							message: new Message().addImageUrl(await getBiliInfo(message[1].text))
-						})
-					}
-				})
+				this.bot.on('FriendMessage', async data => await listenEvents(data,this.bot));
 			}
 		});
 		this.addSettingTab(new MsTodoSyncSettingTab(this.app, this));
@@ -116,7 +107,7 @@ export default class MsTodoSync extends Plugin {
 			this.uptimerApi = new UptimerApi(this.settings.uptimer.token);
 		}
 		this.todoApi = new TodoApi(await new MicrosoftClientProvider(`${this.app.vault.configDir}/msal_cache.json`, this.app.vault.adapter).getClient());
-		// console.log(await this.todoApi.getLists())
+		console.log(this)
 		// this.registerInterval(window.setTimeout(() => this.uptimerApi.getTodayActivities(),(window.moment("18:21", "HH:mm") as unknown as number) - (window.moment() as unknown as number)));
 		// This creates an icon in the left ribbon.
 		// const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
