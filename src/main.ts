@@ -32,7 +32,7 @@ export default class MsTodoSync extends Plugin {
 		);
 
 		await this.loadSettings();
-
+		const item = this.addStatusBarItem();
 		// 在右键菜单中注册命令：将选中的文字创建微软待办
 		// Register command in the context menu: Create to Do with the selected text
 		this.registerEvent(
@@ -81,8 +81,12 @@ export default class MsTodoSync extends Plugin {
 							const line = editor.getLine(cursorLocation.line);
 							const taskId = getTaskIdFromLine(line, this);
 							if (taskId !== "") {
+								// window.open(
+								// 	`https://to-do.live.com/tasks/id/${taskId}/details`,
+								// 	"_blank"
+								// )
 								window.open(
-									`https://to-do.live.com/tasks/id/${taskId}/details`,
+									`ms-todo://tasks/id/${taskId}/details`,
 									"_blank"
 								);
 							}
@@ -132,8 +136,12 @@ export default class MsTodoSync extends Plugin {
 				const line = editor.getLine(cursorLocation.line);
 				const taskId = getTaskIdFromLine(line, this);
 				if (taskId !== "") {
+					// window.open(
+					// 	`https://to-do.live.com/tasks/id/${taskId}/details`,
+					// 	"_blank"
+					// )
 					window.open(
-						`https://to-do.live.com/tasks/id/${taskId}/details`,
+						`ms-todo://tasks/id/${taskId}/details`,
 						"_blank"
 					);
 				}
@@ -172,7 +180,19 @@ export default class MsTodoSync extends Plugin {
 		this.addCommand({
 			id: "open-bot",
 			name: "Launch the bot.",
-			callback: async () => this.botManager.launch(),
+			callback: async () => {
+				this.botManager.launch();
+				item.setText("🔥BOT ON");
+			}
+		});
+
+		this.addCommand({
+			id: 'close-bot',
+			name: 'Stop the Bot',
+			callback: (() => {
+				this.botManager.stop();
+				item.setText("😴BOT OFF");
+			})
 		});
 
 		this.addSettingTab(new MsTodoSyncSettingTab(this));
@@ -182,6 +202,7 @@ export default class MsTodoSync extends Plugin {
 		this.todoApi = new TodoApi();
 		if (this.settings.bot?.autoLaunch) {
 			this.botManager.launch();
+			item.setText("🔥BOT ON");
 		}
 
 		// const a = this.app.vault.getAbstractFileByPath('0进行中/00Today/未命名 2.md')
