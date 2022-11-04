@@ -81,6 +81,7 @@ export default class MsTodoSync extends Plugin {
 							const line = editor.getLine(cursorLocation.line);
 							const taskId = getTaskIdFromLine(line, this);
 							if (taskId !== "") {
+								//TODO May add a setting for desktop users to choose how to open the todo.
 								// window.open(
 								// 	`https://to-do.live.com/tasks/id/${taskId}/details`,
 								// 	"_blank"
