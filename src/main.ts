@@ -1,12 +1,21 @@
-import { createTimeLine } from './command/uptimerCommand';
-import { Editor, MarkdownView, Plugin } from 'obsidian';
-import { TodoApi } from './api/todoApi';
-import { UptimerApi } from './api/uptimerApi';
-import { DEFAULT_SETTINGS, MsTodoSyncSettings, MsTodoSyncSettingTab } from './gui/msTodoSyncSettingTab';
-import { createTodayTasks, postTask } from './command/msTodoCommand';
-import { BotManager } from './bot/botManager';
-import { createTodaySummary } from './command/summaryCommand';
-
+import { createTimeLine } from "./command/uptimerCommand";
+import { Editor, MarkdownView, Plugin } from "obsidian";
+import { TodoApi } from "./api/todoApi";
+import { UptimerApi } from "./api/uptimerApi";
+import {
+	DEFAULT_SETTINGS,
+	MsTodoSyncSettings,
+	MsTodoSyncSettingTab,
+} from "./gui/msTodoSyncSettingTab";
+import {
+	createTodayTasks,
+	postTask,
+	getTaskIdFromLine,
+} from "./command/msTodoCommand";
+import { BotManager } from "./bot/botManager";
+import { createTodaySummary } from "./command/summaryCommand";
+import { t } from "./lib/lang";
+import { log, logging } from "./lib/logging";
 
 export default class MsTodoSync extends Plugin {
 	settings: MsTodoSyncSettings;
@@ -15,67 +24,155 @@ export default class MsTodoSync extends Plugin {
 	public botManager: BotManager = new BotManager(this);
 
 	async onload() {
+		logging.registerConsoleLogger();
+
+		log(
+			"info",
+			`loading plugin "${this.manifest.name}" v${this.manifest.version}`
+		);
+
 		await this.loadSettings();
+
 		// 在右键菜单中注册命令：将选中的文字创建微软待办
+		// Register command in the context menu: Create to Do with the selected text
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor, view) => {
 				menu.addItem((item) => {
-					item.setTitle("同步到微软待办")
-						.onClick(async () =>
-							await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename));
+					item.setTitle(t("EditorMenu_SyncToTodo")).onClick(
+						async () =>
+							await postTask(
+								this.todoApi,
+								this.settings.todoListSync?.listId,
+								editor,
+								this.app.workspace.getActiveFile()?.basename,
+								this
+							)
+					);
 				});
 			})
 		);
+
 		// 在右键菜单中注册命令：将选中的文字创建微软待办并替换
+		// Register command in the context menu: Create and replace the selected text to Microsoft To-Do
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu, editor, view) => {
 				menu.addItem((item) => {
-					item.setTitle("同步到微软待办并替换")
-						.onClick(async () =>
-							await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename, true));
+					item.setTitle(t("EditorMenu_SyncToTodoAndReplace")).onClick(
+						async () =>
+							await postTask(
+								this.todoApi,
+								this.settings.todoListSync?.listId,
+								editor,
+								this.app.workspace.getActiveFile()?.basename,
+								this,
+								true
+							)
+					);
 				});
 			})
 		);
+
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor, view) => {
+				menu.addItem((item) => {
+					item.setTitle(t("EditorMenu_OpenToDo")).onClick(
+						async () => {
+							const cursorLocation = editor.getCursor();
+							const line = editor.getLine(cursorLocation.line);
+							const taskId = getTaskIdFromLine(line, this);
+							if (taskId !== "") {
+								window.open(
+									`https://to-do.live.com/tasks/id/${taskId}/details`,
+									"_blank"
+								);
+							}
+						}
+					);
+				});
+			})
+		);
+
 		// 注册命令：将选中的文字创建微软待办
+		// Register command: Create to Do with the selected text
 		this.addCommand({
-			id: 'only-create-task',
-			name: 'Post the selection as todos to MsTodo.',
+			id: "only-create-task",
+			name: "Post the selection as todos to MsTodo.",
 			editorCallback: async (editor: Editor, view: MarkdownView) =>
-				await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename)
-		});
-		this.addCommand({
-			id: 'create-task-replace',
-			name: 'Post the selection as todos to MsTodo and Replace.',
-			editorCallback: async (editor: Editor, view: MarkdownView) =>
-				await postTask(this.todoApi, this.settings.todoListSync?.listId, editor, this.app.workspace.getActiveFile()?.basename, true)
+				await postTask(
+					this.todoApi,
+					this.settings.todoListSync?.listId,
+					editor,
+					this.app.workspace.getActiveFile()?.basename,
+					this
+				),
 		});
 
 		// 注册命令：将选中的文字创建微软待办并替换
+		// Register command: Create and replace the selected text to Microsoft To-Do
 		this.addCommand({
-			id: 'add-microsoft-todo',
-			name: 'Insert the MsTodo summary.',
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				// TODO 模板化日期
-				await createTodayTasks(this.todoApi, "yyyy年M月D日", editor);
-			}
+			id: "create-task-replace",
+			name: "Post the selection as todos to MsTodo and Replace.",
+			editorCallback: async (editor: Editor, view: MarkdownView) =>
+				await postTask(
+					this.todoApi,
+					this.settings.todoListSync?.listId,
+					editor,
+					this.app.workspace.getActiveFile()?.basename,
+					this,
+					true
+				),
 		});
+
+		// Register command: Open link to ToDo
 		this.addCommand({
-			id: 'add-uptimer',
-			name: 'Insert the uptimer Timeline.',
+			id: "open-task-link",
+			name: "Open To Do",
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				await createTimeLine(this.uptimerApi, editor);
-			}
-		});
-		this.addCommand({
-			id: 'add-summary',
-			name: 'Insert today\'s summary to diary.',
-			callback: async () => await createTodaySummary(this.uptimerApi,this.todoApi,this.app.vault,this.settings)
+				const cursorLocation = editor.getCursor();
+				const line = editor.getLine(cursorLocation.line);
+				const taskId = getTaskIdFromLine(line, this);
+				if (taskId !== "") {
+					window.open(
+						`https://to-do.live.com/tasks/id/${taskId}/details`,
+						"_blank"
+					);
+				}
+			},
 		});
 
 		this.addCommand({
-			id: 'open-bot',
-			name: 'Launch the bot.',
-			callback: async () => this.botManager.launch()
+			id: "add-microsoft-todo",
+			name: "Insert the MsTodo summary.",
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				// TODO 模板化日期
+				await createTodayTasks(this.todoApi, this.settings, editor);
+			},
+		});
+
+		this.addCommand({
+			id: "add-uptimer",
+			name: "Insert the uptimer Timeline.",
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				await createTimeLine(this.uptimerApi, editor);
+			},
+		});
+
+		this.addCommand({
+			id: "add-summary",
+			name: "Insert today's summary to diary.",
+			callback: async () =>
+				await createTodaySummary(
+					this.uptimerApi,
+					this.todoApi,
+					this.app.vault,
+					this.settings
+				),
+		});
+
+		this.addCommand({
+			id: "open-bot",
+			name: "Launch the bot.",
+			callback: async () => this.botManager.launch(),
 		});
 
 		this.addSettingTab(new MsTodoSyncSettingTab(this));
@@ -83,7 +180,7 @@ export default class MsTodoSync extends Plugin {
 			this.uptimerApi = new UptimerApi(this.settings.uptimer.token);
 		}
 		this.todoApi = new TodoApi();
-		if(this.settings.bot?.autoLaunch){
+		if (this.settings.bot?.autoLaunch) {
 			this.botManager.launch();
 		}
 
@@ -100,15 +197,22 @@ export default class MsTodoSync extends Plugin {
 	}
 
 	async onunload() {
+		log(
+			"info",
+			`unloading plugin "${this.manifest.name}" v${this.manifest.version}`
+		);
 		await this.botManager.stop();
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData()
+		);
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
 }
-
