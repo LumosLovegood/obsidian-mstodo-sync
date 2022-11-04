@@ -1,9 +1,9 @@
 {
 	"id": "obsidian-mstodo-sync",
-	"name": "MsTdoSync",
+	"name": "Microsoft To Do Sync",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "一款同步微软Todo的obsidian插件",
+	"description": "一款同步微软Todo的obsidian插件 | An obsidian plugin that syncs with Microsoft Todo",
 	"author": "Lumos",
 	"authorUrl": "https://obsidian.md",
 	"isDesktopOnly": false
