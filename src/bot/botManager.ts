@@ -1,20 +1,21 @@
 import { Bot } from "mirai-js";
 import { Notice } from 'obsidian';
 import MsTodoSync from '../main';
-import { getBilibiliCover } from "./botEvents";
-
-interface event{
-    id: number;
-    fun: Function
-}
+import * as botEvents from "./botEvents";
 
 export class BotManager {
-    private readonly bot: Bot = new Bot();
-    private events: event[];
+    private allEvents: {[key:string]:Function};
+    private readonly bot = new Bot();
+    private actEvents = new Map<string,number>;
     private botOn = false;
+
     constructor(private readonly plugin:MsTodoSync) {
-        this.events = [{id:0,fun:getBilibiliCover}]
+        // official events
+        this.allEvents = botEvents as {[key:string]:Function};
+        // TODO: UserScript events
+
     }
+
     async launch() {
         if(this.botOn){
             new Notice("The Bot is ON.");
@@ -24,6 +25,8 @@ export class BotManager {
             new Notice("Please complete the bot configuration first.")
             return;
         }
+
+        // Open a session for bot
         await this.bot.open(this.plugin.settings.bot)
         .then(() => {
             new Notice("Bot has been started.")
@@ -34,13 +37,10 @@ export class BotManager {
             console.error(err)
         })
 
-        this.events.map(e => {
-            this.bot.on(
-                "FriendMessage", 
-                data => e.fun(data, this.bot)
-            )
-        })
+        // Events Initiation
+        this.initEvents();
     }
+
     async stop(){
         if(this.botOn) await this.bot.close().then(() => {
             this.botOn = false;
@@ -48,7 +48,37 @@ export class BotManager {
         });
     }
     
-    eventHandler(){
-        
+    // Get all functions from botEvents.ts and register them as events
+    initEvents(){
+        // TODO: add a setting for the default AutoStart events
+        for (const key in this.allEvents) {
+            if (Object.prototype.hasOwnProperty.call(this.allEvents, key)) {
+                this.addEvent(key)
+            }
+        }
     }
+
+    removeEvent(eventName:string){
+        if(this.actEvents.get(eventName)){
+            this.bot.off(
+                "FriendMessage",
+                this.actEvents.get(eventName)
+            )
+            this.actEvents.delete(eventName);
+        }
+        console.log(this.actEvents)
+    }
+
+    addEvent(eventName:string){
+        if(!this.actEvents.get(eventName) && this.allEvents[eventName]){
+            this.actEvents.set(
+                eventName, 
+                this.bot.on(
+                    "FriendMessage",
+                    async data => await this.allEvents[eventName](data,this.bot,this.plugin)
+                )
+            )
+        }
+    }
+
 }

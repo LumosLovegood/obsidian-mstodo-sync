@@ -182,17 +182,35 @@ export default class MsTodoSync extends Plugin {
 			id: "open-bot",
 			name: "Launch the bot.",
 			callback: async () => {
-				this.botManager.launch();
-				item.setText("🔥BOT ON");
+				await this.botManager.launch().then(
+					() => item.setText("🔥BOT ON")
+				);
 			}
 		});
 
 		this.addCommand({
 			id: 'close-bot',
 			name: 'Stop the Bot',
+			callback: async () => {
+				await this.botManager.stop().then(
+					() => item.setText("😴BOT OFF")
+				);
+			}
+		});
+
+		this.addCommand({
+			id: 'remove-event',
+			name: 'Remove event',
 			callback: (() => {
-				this.botManager.stop();
-				item.setText("😴BOT OFF");
+				this.botManager.removeEvent("echo");
+			})
+		});
+
+		this.addCommand({
+			id: 'add-event',
+			name: 'Add event',
+			callback: (() => {
+				this.botManager.addEvent("echo");
 			})
 		});
 
