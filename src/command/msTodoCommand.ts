@@ -1,4 +1,5 @@
 import { Editor, Notice } from 'obsidian';
+import { formatTask } from 'src/utils/formatter';
 import MsTodoSync from '../main';
 import { TodoApi } from '../api/todoApi';
 import { MsTodoSyncSettings } from '../gui/msTodoSyncSettingTab';
@@ -49,6 +50,8 @@ export async function postTask(
 			if (blocklistMatch) {
 				const blocklink = blocklistMatch[1];
 				const taskId = plugin.settings.taskIdLookup[blocklink];
+				//FIXME If there's a 'Created at xxxx' replaced line,
+				// it's not enough to get a cleanTaskTitle after the next line.
 				const cleanTaskTitle = line.replace(`^${blocklink}`, '');
 
 				console.log(blocklink);
@@ -75,10 +78,13 @@ export async function postTask(
 					.map((i) => {
 						let createdAt = '';
 						const blocklink = `^${i.index}`;
+						const formattedTask = formatTask(plugin, i.line);
 						if (plugin.settings.displayOptions_ReplaceAddCreatedAt) {
-							createdAt = `${t('displayOptions_CreatedAtTime')} ${window.moment().format('HH:mm')}`;
+							createdAt = `${t('displayOptions_CreatedAtTime')} ${window
+								.moment()
+								.format(plugin.settings.displayOptions_TimeFormat)}`;
 						}
-						return `- [ ] ${i.line} ${createdAt} ${blocklink}`;
+						return `${formattedTask} ${createdAt} ${blocklink}`;
 					})
 					.join('\n'),
 			);

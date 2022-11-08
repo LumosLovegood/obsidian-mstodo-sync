@@ -22,6 +22,7 @@ export interface MsTodoSyncSettings {
 	displayOptions_TaskStartPrefix: string;
 	displayOptions_TaskBodyPrefix: string;
 	displayOptions_ReplaceAddCreatedAt: boolean;
+	displayOptions_ReplacementFormat: string;
 
 	// Microsoft To Do open handler.
 	todo_OpenUsingApplicationProtocol: boolean;
@@ -51,6 +52,7 @@ export const DEFAULT_SETTINGS: MsTodoSyncSettings = {
 	displayOptions_TaskStartPrefix: '🛫',
 	displayOptions_TaskBodyPrefix: '💡',
 	displayOptions_ReplaceAddCreatedAt: false,
+	displayOptions_ReplacementFormat: '- [ ] {{TASK}}',
 	todo_OpenUsingApplicationProtocol: true,
 
 	loggingOptions: {
@@ -137,6 +139,17 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
 			.addToggle((toggle) =>
 				toggle.setValue(this.settings.displayOptions_ReplaceAddCreatedAt).onChange(async (value) => {
 					this.settings.displayOptions_ReplaceAddCreatedAt = value;
+					await this.plugin.saveSettings();
+				}),
+			);
+
+		// Replacement Format: default: - [ ] {{TASK}}
+		new Setting(containerEl)
+			.setName(t('Settings_Todo_Display_ReplacementFormat'))
+			.setDesc(t('Settings_Todo_Display_ReplacementFormatDescription'))
+			.addText((text) =>
+				text.setValue(this.settings.displayOptions_ReplacementFormat).onChange(async (value) => {
+					this.settings.displayOptions_ReplacementFormat = value;
 					await this.plugin.saveSettings();
 				}),
 			);
