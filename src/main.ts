@@ -1,19 +1,13 @@
 import { Editor, MarkdownView, Plugin } from 'obsidian';
-import { createTimeLine } from './command/uptimerCommand';
 import { TodoApi } from './api/todoApi';
-import { UptimerApi } from './api/uptimerApi';
 import { DEFAULT_SETTINGS, MsTodoSyncSettingTab, MsTodoSyncSettings } from './gui/msTodoSyncSettingTab';
 import { createTodayTasks, getTaskIdFromLine, postTask } from './command/msTodoCommand';
-import { BotManager } from './bot/botManager';
-import { createTodaySummary } from './command/summaryCommand';
 import { t } from './lib/lang';
 import { log, logging } from './lib/logging';
 
 export default class MsTodoSync extends Plugin {
 	settings: MsTodoSyncSettings;
 	public todoApi: TodoApi;
-	public uptimerApi: UptimerApi;
-	public botManager: BotManager = new BotManager(this);
 
 	async onload() {
 		logging.registerConsoleLogger();
@@ -21,7 +15,6 @@ export default class MsTodoSync extends Plugin {
 		log('info', `loading plugin "${this.manifest.name}" v${this.manifest.version}`);
 
 		await this.loadSettings();
-		const item = this.addStatusBarItem();
 		// 在右键菜单中注册命令：将选中的文字创建微软待办
 		// Register command in the context menu: Create to Do with the selected text
 		this.registerEvent(
@@ -69,12 +62,12 @@ export default class MsTodoSync extends Plugin {
 						const line = editor.getLine(cursorLocation.line);
 						const taskId = getTaskIdFromLine(line, this);
 						if (taskId !== '') {
-							//TODO May add a setting for desktop users to choose how to open the todo.
-							// window.open(
-							// 	`https://to-do.live.com/tasks/id/${taskId}/details`,
-							// 	"_blank"
-							// )
-							window.open(`ms-todo://tasks/id/${taskId}/details`, '_blank');
+							// @ts-ignore Not available in mobile app
+							if (!this.app.isMobile && this.settings.todo_OpenUsingApplicationProtocol) {
+								window.open(`ms-todo://tasks/id/${taskId}/details`, '_blank');
+							} else {
+								window.open(`https://to-do.live.com/tasks/id/${taskId}/details`, '_blank');
+							}
 						}
 					});
 				});
@@ -121,7 +114,8 @@ export default class MsTodoSync extends Plugin {
 				const line = editor.getLine(cursorLocation.line);
 				const taskId = getTaskIdFromLine(line, this);
 				if (taskId !== '') {
-					if (this.settings.todo_OpenUsingApplicationProtocol) {
+					// @ts-ignore Not available in mobile app
+					if (!this.app.isMobile && this.settings.todo_OpenUsingApplicationProtocol) {
 						window.open(`ms-todo://tasks/id/${taskId}/details`, '_blank');
 					} else {
 						window.open(`https://to-do.live.com/tasks/id/${taskId}/details`, '_blank');
@@ -139,62 +133,8 @@ export default class MsTodoSync extends Plugin {
 			},
 		});
 
-		this.addCommand({
-			id: 'add-uptimer',
-			name: 'Insert the uptimer Timeline.',
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				await createTimeLine(this.uptimerApi, editor);
-			},
-		});
-
-		this.addCommand({
-			id: 'add-summary',
-			name: "Insert today's summary to diary.",
-			callback: async () =>
-				await createTodaySummary(this.uptimerApi, this.todoApi, this.app.vault, this.settings),
-		});
-
-		this.addCommand({
-			id: 'open-bot',
-			name: 'Launch the bot.',
-			callback: async () => {
-				await this.botManager.launch().then(() => item.setText('🔥BOT ON'));
-			},
-		});
-
-		this.addCommand({
-			id: 'close-bot',
-			name: 'Stop the Bot',
-			callback: async () => {
-				await this.botManager.stop().then(() => item.setText('😴BOT OFF'));
-			},
-		});
-
-		this.addCommand({
-			id: 'remove-event',
-			name: 'Remove event',
-			callback: () => {
-				this.botManager.removeEvent('echo');
-			},
-		});
-
-		this.addCommand({
-			id: 'add-event',
-			name: 'Add event',
-			callback: () => {
-				this.botManager.addEvent('echo');
-			},
-		});
-
 		this.addSettingTab(new MsTodoSyncSettingTab(this));
-		if (this.settings.uptimer?.token != undefined) {
-			this.uptimerApi = new UptimerApi(this.settings.uptimer.token);
-		}
 		this.todoApi = new TodoApi();
-		if (this.settings.bot?.autoLaunch) {
-			this.botManager.launch();
-			item.setText('🔥BOT ON');
-		}
 
 		// const a = this.app.vault.getAbstractFileByPath('0进行中/00Today/未命名 2.md')
 		// if(a) await this.app.vault.append(a,"hello")
@@ -210,7 +150,6 @@ export default class MsTodoSync extends Plugin {
 
 	async onunload() {
 		log('info', `unloading plugin "${this.manifest.name}" v${this.manifest.version}`);
-		await this.botManager.stop();
 	}
 
 	async loadSettings() {

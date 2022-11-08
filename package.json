@@ -36,7 +36,6 @@
 		"@microsoft/microsoft-graph-client": "^3.0.2",
 		"@microsoft/microsoft-graph-types": "^2.25.0",
 		"eventemitter2": "^6.4.5",
-		"mirai-js": "^2.8.7",
 		"node-fetch": "^2.6.1"
 	}
 }

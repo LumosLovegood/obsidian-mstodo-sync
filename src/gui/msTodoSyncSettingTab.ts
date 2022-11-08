@@ -1,6 +1,5 @@
 import { Notice, PluginSettingTab, Setting } from 'obsidian';
 import MsTodoSync from '../main';
-import { getUptimerToken } from '../api/uptimerApi';
 import { t } from './../lib/lang';
 import { LogOptions } from './../lib/logging';
 
@@ -9,19 +8,7 @@ export interface MsTodoSyncSettings {
 		listName: string | undefined;
 		listId: string | undefined;
 	};
-	uptimer: {
-		email: string | undefined;
-		password: string | undefined;
-		token: string | undefined;
-	};
-	bot:
-		| {
-				baseUrl: string;
-				verifyKey: string;
-				qq: number | undefined;
-				autoLaunch: boolean;
-		  }
-		| undefined;
+
 	diary: {
 		folder: string;
 		format: string;
@@ -52,12 +39,6 @@ export const DEFAULT_SETTINGS: MsTodoSyncSettings = {
 		listName: undefined,
 		listId: undefined,
 	},
-	uptimer: {
-		email: undefined,
-		password: undefined,
-		token: undefined,
-	},
-	bot: undefined,
 	diary: {
 		folder: '',
 		format: '',
@@ -160,23 +141,6 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
 				}),
 			);
 
-		containerEl.createEl('h2', { text: t('Settings_Uptimer') });
-
-		new Setting(containerEl).setName(t('Settings_Uptimer_UpTimerEmail')).addText((text) =>
-			text.setValue(this.settings.uptimer.email ?? '').onChange(async (value) => {
-				console.log('Secret: ' + value);
-				this.settings.uptimer.email = value;
-				await this.plugin.saveSettings();
-			}),
-		);
-
-		new Setting(containerEl).setName(t('Settings_Uptimer_UpTimerPassword')).addText((text) =>
-			text.setValue(this.settings.uptimer.password ?? '').onChange(async (value) => {
-				this.settings.uptimer.password = value;
-				await this.plugin.saveSettings();
-			}),
-		);
-
 		containerEl.createEl('h2', { text: t('Settings_JournalFormatting') });
 		new Setting(containerEl).setName(t('Settings_JournalFormatting_PeriodicNotes')).addToggle((toggle) =>
 			toggle.setValue(this.settings.diary.stayWithPN).onChange(async (value) => {
@@ -241,8 +205,6 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
 
 	async hide() {
 		const listName = this.settings.todoListSync.listName;
-		const email = this.settings.uptimer.email;
-		const password = this.settings.uptimer.password;
 
 		if (this.settings.todoListSync.listId != undefined || !listName) {
 			if (!listName) new Notice('微软同步列表未设置');
@@ -260,19 +222,6 @@ export class MsTodoSyncSettingTab extends PluginSettingTab {
 					listId,
 				};
 				new Notice('设置同步列表成功√');
-				await this.plugin.saveSettings();
-			}
-		}
-
-		if (!this.settings.uptimer.token) {
-			if (!email || !password) new Notice('uptimer未设置');
-			else {
-				const token = await getUptimerToken(email, password);
-				if (!token) {
-					new Notice('邮箱或密码错误');
-				}
-				this.settings.uptimer.token = token;
-				new Notice('uptimer已配置完成√');
 				await this.plugin.saveSettings();
 			}
 		}

@@ -1,3 +1,4 @@
+import { Z_VERSION_ERROR } from 'zlib';
 import moment from 'moment';
 import { Platform, Plugin } from 'obsidian';
 /*
@@ -10,7 +11,6 @@ import { Platform, Plugin } from 'obsidian';
  * https://www.npmjs.com/package/eventemitter2
  */
 import { EventEmitter2 } from 'eventemitter2';
-import { Z_VERSION_ERROR } from 'zlib';
 
 /**
  * All possible log levels

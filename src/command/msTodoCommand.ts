@@ -55,7 +55,7 @@ export async function postTask(
 				console.log(taskId);
 				const updatedTask = await todoApi.updateTask(listId, taskId, cleanTaskTitle);
 				console.log(updatedTask);
-				return { line, blocklink };
+				return { line: cleanTaskTitle, index: blocklink };
 			} else {
 				const newTask = await todoApi.createTask(listId, line, body);
 				plugin.settings.taskIdIndex = plugin.settings.taskIdIndex + 1;
@@ -70,7 +70,6 @@ export async function postTask(
 	).then((res) => {
 		new Notice('创建待办成功√');
 		if (replace) {
-			// TODO 格式
 			editor.replaceSelection(
 				res
 					.map((i) => {
@@ -113,7 +112,7 @@ export async function createTodayTasks(todoApi: TodoApi, settings: MsTodoSyncSet
 
 				return `- [${done}] ${task.title}  ${createDate}  ${body}`;
 			});
-			return `#### ${taskList.displayName}
+			return `**${taskList.displayName}**
 ${lines?.join('\n')}
 `;
 		})
