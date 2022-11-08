@@ -1,5 +1,3 @@
-import { Modal } from "obsidian";
+import { Modal } from 'obsidian';
 
-export class BotManageModal extends Modal{
-    
-}
+export class BotManageModal extends Modal {}
