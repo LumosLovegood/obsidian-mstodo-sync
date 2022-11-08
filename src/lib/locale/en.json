@@ -46,5 +46,7 @@
 	"Settings_Todo_Display_TimeFormatDescription": "The format used when adding or rendering a time for a task.",
 	"Settings_Todo_Display_AddCreatedAtOnReplace": "Add Created At on Replace",
 	"Settings_Todo_Display_AddCreatedAtOnReplaceDescription": "If you select to replace the task and this is enabled 'Created at {Time Format}'",
-	"EditorMenu_OpenToDo": "Open To Do"
+	"EditorMenu_OpenToDo": "Open To Do",
+	"Settings_Todo_OpenUsingApplicationProtocolTitle": "Open with application protocol?",
+	"Settings_Todo_OpenUsingApplicationProtocolDescription": "If this is set to true it will open the todo in the locally installed application, set it to off if you want to open the todo in the browser."
 }

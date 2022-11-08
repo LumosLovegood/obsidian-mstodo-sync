@@ -1,23 +1,74 @@
 {
-    "root": true,
-    "parser": "@typescript-eslint/parser",
-    "env": { "node": true },
-    "plugins": [
-      "@typescript-eslint"
-    ],
-    "extends": [
-      "eslint:recommended",
-      "plugin:@typescript-eslint/eslint-recommended",
-      "plugin:@typescript-eslint/recommended"
-    ], 
-    "parserOptions": {
-        "sourceType": "module"
-    },
-    "rules": {
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": ["error", { "args": "none" }],
-      "@typescript-eslint/ban-ts-comment": "off",
-      "no-prototype-builtins": "off",
-      "@typescript-eslint/no-empty-function": "off"
-    } 
-  }
+	"root": true,
+	"parser": "@typescript-eslint/parser",
+	"env": {
+		"es6": true,
+		"node": true,
+		"browser": true
+	},
+	"plugins": [
+		"@typescript-eslint",
+		"import",
+		"prettier",
+		"no-loops"
+	],
+	"extends": [
+		"eslint:recommended",
+		"plugin:@typescript-eslint/eslint-recommended",
+		"plugin:@typescript-eslint/recommended",
+		"plugin:import/typescript",
+		"prettier"
+	],
+	"parserOptions": {
+		"ecmaVersion": 6,
+		"sourceType": "module",
+		"ecmaFeatures": {
+			"modules": true
+		}
+	},
+	"ignorePatterns": [
+		"main.js",
+		"node_modules"
+	],
+	"globals": {
+		"Atomics": "readonly",
+		"SharedArrayBuffer": "readonly"
+	},
+	"rules": {
+		"prettier/prettier": 2,
+		"linebreak-style": [
+			"error",
+			"unix"
+		],
+		"quotes": [
+			"error",
+			"single",
+			{
+				"avoidEscape": true
+			}
+		],
+		"semi": [
+			"error",
+			"always"
+		],
+		"import/order": "error",
+		"sort-imports": [
+			"error",
+			{
+				"ignoreDeclarationSort": true
+			}
+		],
+		"no-unused-vars": "off",
+		"@typescript-eslint/no-unused-vars": [
+			"error",
+			{
+				"args": "none"
+			}
+		],
+		"@typescript-eslint/no-explicit-any": "off",
+		"@typescript-eslint/ban-ts-comment": "off",
+		"no-prototype-builtins": "off",
+		"@typescript-eslint/no-empty-function": "off",
+		"no-loops/no-loops": 2
+	}
+}

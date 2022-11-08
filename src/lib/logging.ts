@@ -1,5 +1,5 @@
-import moment from "moment";
-import { Platform, Plugin } from "obsidian";
+import moment from 'moment';
+import { Platform, Plugin } from 'obsidian';
 /*
  * EventEmitter2 is an implementation of the EventEmitter module found in Node.js.
  * In addition to having a better benchmark performance than EventEmitter and being
@@ -9,18 +9,19 @@ import { Platform, Plugin } from "obsidian";
  * This has been added as EventEmitter in Node.JS is not available in the browser.
  * https://www.npmjs.com/package/eventemitter2
  */
-import { EventEmitter2 } from "eventemitter2";
+import { EventEmitter2 } from 'eventemitter2';
+import { Z_VERSION_ERROR } from 'zlib';
 
 /**
  * All possible log levels
  * @public
  */
 export interface ILogLevel {
-	1: "trace";
-	2: "debug";
-	3: "info";
-	4: "warn";
-	5: "error";
+	1: 'trace';
+	2: 'debug';
+	3: 'info';
+	4: 'warn';
+	5: 'error';
 }
 
 /**
@@ -45,7 +46,7 @@ export interface LogEntry {
  * @interface LogOptions
  */
 export interface LogOptions {
-	minLevels: { [module: string]: string };
+	minLevels: { [moduleName: string]: string };
 }
 
 /**
@@ -70,13 +71,13 @@ export type TLogLevelName = ILogLevel[TLogLevelId];
 export class LogManager extends EventEmitter2 {
 	private options: LogOptions = {
 		minLevels: {
-			"": "info",
-			"mstodo-sync": "info",
+			'': 'info',
+			'mstodo-sync': 'info',
 		},
 	};
 
 	// Prevent the console logger from being added twice
-	private consoleLoggerRegistered: boolean = false;
+	private consoleLoggerRegistered = false;
 
 	/**
 	 * Set the minimum log levels for the module name or global.
@@ -97,17 +98,19 @@ export class LogManager extends EventEmitter2 {
 	 * @return {*}  {Logger}
 	 * @memberof LogManager
 	 */
-	public getLogger(module: string): Logger {
-		let minLevel = "none";
-		let match = "";
+	public getLogger(moduleName: string): Logger {
+		let currentMinimumLevel = 'none';
+		let match = '';
 
+		// eslint-disable-next-line no-loops/no-loops
 		for (const key in this.options.minLevels) {
-			if (module.startsWith(key) && key.length >= match.length) {
-				minLevel = this.options.minLevels[key];
+			if (moduleName.startsWith(key) && key.length >= match.length) {
+				currentMinimumLevel = this.options.minLevels[key];
 				match = key;
 			}
 		}
-		return new Logger(this, module, minLevel);
+
+		return new Logger(this, moduleName, currentMinimumLevel);
 	}
 
 	/**
@@ -118,7 +121,7 @@ export class LogManager extends EventEmitter2 {
 	 * @memberof LogManager
 	 */
 	public onLogEntry(listener: (logEntry: LogEntry) => void): LogManager {
-		this.on("log", listener);
+		this.on('log', listener);
 		return this;
 	}
 
@@ -135,9 +138,7 @@ export class LogManager extends EventEmitter2 {
 		if (this.consoleLoggerRegistered) return this;
 
 		this.onLogEntry((logEntry) => {
-			let msg = `[${moment().format("YYYYMMDDHHmmss")}][${
-				logEntry.level
-			}][${logEntry.module}]`;
+			let msg = `[${moment().format('YYYYMMDDHHmmss')}][${logEntry.level}][${logEntry.module}]`;
 
 			if (logEntry.traceId) {
 				msg += `[${logEntry.traceId}]`;
@@ -145,23 +146,23 @@ export class LogManager extends EventEmitter2 {
 
 			msg += ` ${logEntry.message}`;
 			if (logEntry.objects === undefined) {
-				logEntry.objects = "";
+				logEntry.objects = '';
 			}
 
 			switch (logEntry.level) {
-				case "trace":
+				case 'trace':
 					console.trace(msg, logEntry.objects);
 					break;
-				case "debug":
+				case 'debug':
 					console.debug(msg, logEntry.objects);
 					break;
-				case "info":
+				case 'info':
 					console.info(msg, logEntry.objects);
 					break;
-				case "warn":
+				case 'warn':
 					console.warn(msg, logEntry.objects);
 					break;
-				case "error":
+				case 'error':
 					console.error(msg, logEntry.objects);
 					break;
 				default:
@@ -214,8 +215,7 @@ export class Logger {
 	 * @param minLevel
 	 */
 	private levelToInt(minLevel: string): number {
-		if (minLevel.toLowerCase() in this.levels)
-			return this.levels[minLevel.toLowerCase()];
+		if (minLevel.toLowerCase() in this.levels) return this.levels[minLevel.toLowerCase()];
 		else return 99;
 	}
 
@@ -249,23 +249,23 @@ export class Logger {
 		//     }
 		// }
 
-		this.logManager.emit("log", logEntry);
+		this.logManager.emit('log', logEntry);
 	}
 
 	public trace(message: string, objects?: any): void {
-		this.log("trace", message, objects);
+		this.log('trace', message, objects);
 	}
 	public debug(message: string, objects?: any): void {
-		this.log("debug", message, objects);
+		this.log('debug', message, objects);
 	}
 	public info(message: string, objects?: any): void {
-		this.log("info", message, objects);
+		this.log('info', message, objects);
 	}
 	public warn(message: string, objects?: any): void {
-		this.log("warn", message, objects);
+		this.log('warn', message, objects);
 	}
 	public error(message: string, objects?: any): void {
-		this.log("error", message, objects);
+		this.log('error', message, objects);
 	}
 
 	/**
@@ -273,12 +273,7 @@ export class Logger {
 	 * @param logLevel
 	 * @param message
 	 */
-	public logWithId(
-		logLevel: string,
-		traceId: string,
-		message: string,
-		objects?: any
-	): void {
+	public logWithId(logLevel: string, traceId: string, message: string, objects?: any): void {
 		const level = this.levelToInt(logLevel);
 		if (level < this.minLevel) return;
 
@@ -290,86 +285,30 @@ export class Logger {
 			traceId,
 		};
 
-		this.logManager.emit("log", logEntry);
+		this.logManager.emit('log', logEntry);
 	}
 
 	public traceWithId(traceId: string, message: string, objects?: any): void {
-		this.logWithId("trace", traceId, message, objects);
+		this.logWithId('trace', traceId, message, objects);
 	}
 	public debugWithId(traceId: string, message: string, objects?: any): void {
-		this.logWithId("debug", traceId, message, objects);
+		this.logWithId('debug', traceId, message, objects);
 	}
 	public infoWithId(traceId: string, message: string, objects?: any): void {
-		this.logWithId("info", traceId, message, objects);
+		this.logWithId('info', traceId, message, objects);
 	}
 	public warnWithId(traceId: string, message: string, objects?: any): void {
-		this.logWithId("warn", traceId, message, objects);
+		this.logWithId('warn', traceId, message, objects);
 	}
 	public errorWithId(traceId: string, message: string, objects?: any): void {
-		this.logWithId("error", traceId, message, objects);
+		this.logWithId('error', traceId, message, objects);
 	}
 }
 
-type TimingMap = {
-	// count, avg, min, max
-	[id: string]: number[];
-};
-
-const timingMap: TimingMap = {};
-
-/**
- * This deceleration will log the time taken to run the function it is attached to. Be
- * careful where it is added as it increases the output.
- *
- * @export
- * @return {*}
- */
-export const logCall = (
-	target: Object,
-	propertyKey: string,
-	descriptor: PropertyDescriptor
-) => {
-	const originalMethod = descriptor.value;
-	//const logger = logging.getLogger('taskssql.perf');
-	descriptor.value = function (...args: any[]) {
-		const startTime = new Date(Date.now());
-		const result = originalMethod.apply(this, args);
-		const endTime = new Date(Date.now());
-		const name = `${target?.constructor?.name}${propertyKey}`;
-		const time = endTime.getTime() - startTime.getTime();
-		if (timingMap[name] === undefined) {
-			timingMap[name] = [];
-		}
-		timingMap[name].push(time);
-
-		//console.log(timingMap);
-		// if (endTime.getTime() - startTime.getTime() > 50) {
-		//     console.debug(
-		//         `[debug][taskssql.perf] ${String(timingMap[name].avg).padEnd(4)}${String(
-		//             endTime.getTime() - startTime.getTime(),
-		//         ).padEnd(4)} ${target?.constructor?.name.padEnd(10)}${propertyKey.padEnd(20)}`,
-		//     );
-
-		//     // logger.debug(
-		//     //     `${target?.constructor?.name}:${propertyKey}:called with ${args.length} arguments. Took: ${
-		//     //         endTime.getTime() - startTime.getTime()
-		//     //     }ms`,
-		//     // );
-		// }
-		return result;
-	};
-
-	return descriptor;
-};
-
 export function logCallDetails() {
-	return function (
-		target: any,
-		propertyKey: string,
-		descriptor: PropertyDescriptor
-	) {
+	return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
 		const originalMethod = descriptor.value;
-		const logger = logging.getLogger("taskssql");
+		const logger = logging.getLogger('mstodo-sync');
 
 		descriptor.value = async function (...args: any[]) {
 			const startTime = new Date(Date.now());
@@ -380,7 +319,7 @@ export function logCallDetails() {
 			logger.debug(
 				`${typeof target}:${propertyKey} called with ${
 					args.length
-				} arguments. Took: ${elapsed}ms ${JSON.stringify(args)}`
+				} arguments. Took: ${elapsed}ms ${JSON.stringify(args)}`,
 			);
 			return result;
 		};
@@ -396,22 +335,22 @@ export function logCallDetails() {
  * @param {string} message
  */
 export function log(logLevel: TLogLevelName, message: string) {
-	const logger = logging.getLogger("mstodo-sync");
+	const logger = logging.getLogger('mstodo-sync');
 
 	switch (logLevel) {
-		case "trace":
+		case 'trace':
 			logger.trace(message);
 			break;
-		case "debug":
+		case 'debug':
 			logger.debug(message);
 			break;
-		case "info":
+		case 'info':
 			logger.info(message);
 			break;
-		case "warn":
+		case 'warn':
 			logger.warn(message);
 			break;
-		case "error":
+		case 'error':
 			logger.error(message);
 			break;
 		default:
@@ -439,15 +378,15 @@ export function monkeyPatchConsole(plugin: Plugin) {
 		(prefix: string) =>
 		(...messages: unknown[]) => {
 			logs.push(`\n[${prefix}]`);
-			for (const message of messages) {
+			messages.forEach((message) => {
 				logs.push(String(message));
-			}
-			plugin.app.vault.adapter.write(logFile, logs.join(" "));
+			});
+			plugin.app.vault.adapter.write(logFile, logs.join(' '));
 		};
 
-	console.debug = logMessages("debug");
-	console.error = logMessages("error");
-	console.info = logMessages("info");
-	console.log = logMessages("log");
-	console.warn = logMessages("warn");
+	console.debug = logMessages('debug');
+	console.error = logMessages('error');
+	console.info = logMessages('info');
+	console.log = logMessages('log');
+	console.warn = logMessages('warn');
 }
